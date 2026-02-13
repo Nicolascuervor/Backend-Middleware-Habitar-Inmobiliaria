@@ -1,0 +1,36 @@
+package co.habitarinmobiliaria.middleware_service.dtos;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.Builder;
+import lombok.Data;
+
+/**
+ * Objeto optimizado para el Frontend de Adulto Mayor.
+ * Sin ruido, solo datos listos para renderizar.
+ */
+@Data
+@Builder
+@Schema(description = "Objeto optimizado para la tarjeta de inmueble en el Frontend")
+public class VitrinaInmuebleDTO {
+
+    @Schema(description = "Identificador único del inmueble en Wasi", example = "9773703")
+    private String id;
+
+    @Schema(description = "Título comercial del inmueble", example = "Apartamento en Puerto Espejo")
+    private String titulo;
+
+    @Schema(description = "Precio ya formateado con moneda", example = "$1.050.000")
+    private String precioFormateado;
+
+    @Schema(description = "Ubicación compuesta (Ciudad - Zona)", example = "Armenia - Puerto Espejo")
+    private String ubicacion;
+
+    @Schema(description = "URL pública de la imagen principal", example = "https://image.wasi.co/...")
+    private String imagenUrl;
+
+    @Schema(description = "Descripción limpia de HTML y truncada a 120 caracteres", example = "Hermoso apartamento con vista...")
+    private String descripcionCorta;
+
+    @Schema(description = "Indica si debe resaltarse en la UI (botones grandes)", example = "false")
+    private boolean esDestacado;
+}
