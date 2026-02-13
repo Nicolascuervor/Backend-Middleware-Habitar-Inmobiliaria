@@ -3,9 +3,7 @@ package co.habitarinmobiliaria.middleware_service.client;
 import co.habitarinmobiliaria.middleware_service.config.HubSpotFeignConfig;
 import co.habitarinmobiliaria.middleware_service.dtos.HubSpotContactDTO;
 import org.springframework.cloud.openfeign.FeignClient;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
 
 @FeignClient(name = "hubspot-client", url = "https://api.hubapi.com", configuration = HubSpotFeignConfig.class)
 public interface HubSpotClient {
@@ -18,5 +16,11 @@ public interface HubSpotClient {
     HubSpotContactDTO obtenerContacto(
             @PathVariable("contactId") String contactId,
             @RequestParam("properties") String properties
+    );
+
+    @PatchMapping("/crm/v3/objects/contacts/{contactId}")
+    HubSpotContactDTO actualizarContacto(
+            @PathVariable("contactId") String contactId,
+            @RequestBody Object propertiesWrapper // Enviaremos un Map anidado
     );
 }
