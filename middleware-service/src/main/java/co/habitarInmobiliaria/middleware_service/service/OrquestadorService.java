@@ -3,13 +3,12 @@ package co.habitarinmobiliaria.middleware_service.service;
 
 import co.habitarinmobiliaria.middleware_service.client.HubSpotClient;
 import co.habitarinmobiliaria.middleware_service.client.WasiClient;
-import co.habitarinmobiliaria.middleware_service.dtos.HubSpotContactDTO;
-import co.habitarinmobiliaria.middleware_service.dtos.VitrinaInmuebleDTO;
-import co.habitarinmobiliaria.middleware_service.dtos.WasiInmuebleDTO;
+import co.habitarinmobiliaria.middleware_service.dtos.*;
 import co.habitarinmobiliaria.middleware_service.exception.ErrorExternoException;
 import co.habitarinmobiliaria.middleware_service.exception.RecursoNoEncontradoException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -25,18 +24,59 @@ public class OrquestadorService {
     private final WasiClient wasiClient;
     private final InmuebleMapperService mapperService;
 
-    public List<VitrinaInmuebleDTO> procesarVitrina(String usuarioToken) {
-        log.info("Iniciando orquestación para usuario: {}", usuarioToken);
+    @Value("${asesor.n.id}")
+    private String idN;
+
+    @Value("${asesor.n.foto}")
+    private String fotoN;
+
+    @Value("${asesor.n.tel}")
+    private String telN;
+
+    @Value("${asesor.n.meet}")
+    private String meetN;
+
+
+    // --- ASESOR S ---
+    @Value("${asesor.s.id}") private String idS;
+    @Value("${asesor.s.foto}") private String fotoS;
+    @Value("${asesor.s.tel}") private String telS;
+    @Value("${asesor.s.meet}") private String meetS;
+
+    // --- ASESOR J ---
+    @Value("${asesor.j.id}") private String idJ;
+    @Value("${asesor.j.foto}") private String fotoJ;
+    @Value("${asesor.j.tel}") private String telJ;
+    @Value("${asesor.j.meet}") private String meetJ;
+
+    // --- ASESOR D ---
+    @Value("${asesor.d.id}") private String idD;
+    @Value("${asesor.d.foto}") private String fotoD;
+    @Value("${asesor.d.tel}") private String telD;
+    @Value("${asesor.d.meet}") private String meetD;
+
+    // --- ASESOR M ---
+    @Value("${asesor.m.id}") private String idM;
+    @Value("${asesor.m.foto}") private String fotoM;
+    @Value("${asesor.m.tel}") private String telM;
+    @Value("${asesor.m.meet}") private String meetM;
+
+
+    public VitrinaResponseDTO procesarVitrina(String usuarioToken) { // <-- 1. Cambiamos el tipo de retorno
+        log.info("Iniciando orquestación completa para usuario: {}", usuarioToken);
 
         // 1. Obtener datos de HubSpot
-        // Solicitamos explícitamente las propiedades que necesitamos
-        String propiedadesSolicitadas = "firstname,listing_1,listing_2,listing_3,listing_4,listing_5";
-
+        String propiedadesSolicitadas = "firstname,listing_1,listing_2,listing_3,listing_4,listing_5,hubspot_owner_id";
         HubSpotContactDTO contacto = hubSpotClient.obtenerContacto(usuarioToken, propiedadesSolicitadas);
 
+        // Validamos si el contacto existe
         if (contacto == null || contacto.getProperties() == null) {
             log.warn("Usuario no encontrado o sin propiedades: {}", usuarioToken);
-            return new ArrayList<>();
+            // Retornamos el Wrapper vacío de forma segura
+            return VitrinaResponseDTO.builder()
+                    .asesor(construirInfoAsesor(null))
+                    .inmuebles(new ArrayList<>())
+                    .build();
         }
 
         // 2. Extraer URLs de los listings (ignorando nulos)
@@ -51,27 +91,31 @@ public class OrquestadorService {
 
         List<VitrinaInmuebleDTO> vitrinaFinal = new ArrayList<>();
 
-        // 3. Iterar y consultar Wasi
+        // 3. Iterar y consultar Wasi (Tu lógica intacta y resiliente)
         for (String url : urlsListings) {
             String inmuebleId = mapperService.extraerIdDeUrl(url);
 
             if (inmuebleId != null) {
                 try {
-                    // Llamada a API Wasi
                     WasiInmuebleDTO inmuebleRaw = wasiClient.obtenerInmueblePorId(inmuebleId);
-
-                    // Transformación a DTO Limpio
                     if (inmuebleRaw != null) {
                         vitrinaFinal.add(mapperService.mapToVitrina(inmuebleRaw));
                     }
                 } catch (Exception e) {
-                    // Resiliencia: Si falla un inmueble, logueamos y seguimos con el siguiente
                     log.error("Error obteniendo inmueble {}: {}", inmuebleId, e.getMessage());
                 }
             }
         }
 
-        return vitrinaFinal;
+        // 4. Construir la información del Asesor
+        String ownerId = props.getOwnerId(); // Extraemos el ID del dueño
+        VitrinaResponseDTO.AsesorInfo infoAsesor = construirInfoAsesor(ownerId);
+
+        // 5. Empaquetar y retornar el objeto final
+        return VitrinaResponseDTO.builder()
+                .asesor(infoAsesor)
+                .inmuebles(vitrinaFinal)
+                .build();
     }
 
 
@@ -79,7 +123,8 @@ public class OrquestadorService {
         log.info("Solicitando detalle inmueble {} para usuario {}", inmuebleIdSolicitado, usuarioToken);
 
         // 1. Consultar HubSpot para verificar permisos (Seguridad)
-        HubSpotContactDTO contacto = hubSpotClient.obtenerContacto(usuarioToken, "firstname,listing_1,listing_2,listing_3,listing_4,listing_5");
+        HubSpotContactDTO contacto = hubSpotClient.obtenerContacto(usuarioToken,
+                "firstname,listing_1,listing_2,listing_3,listing_4,listing_5,hs_avatar_filemanager_key");
 
         if (contacto == null || contacto.getProperties() == null) {
             throw new RecursoNoEncontradoException("Cliente no encontrado en HubSpot");
@@ -234,6 +279,64 @@ public class OrquestadorService {
 
             // Opción B: No hacer nada y retornar (Idempotente - Recomendado)
             log.warn("El inmueble {} no estaba en la vitrina del usuario. No se hizo nada.", idTarget);
+        }
+    }
+
+
+
+    private VitrinaResponseDTO.AsesorInfo construirInfoAsesor(String ownerId) {
+        // 1. Caso de seguridad: Si el contacto no tiene dueño asignado en HubSpot
+        if (ownerId == null || ownerId.trim().isEmpty()) {
+            return VitrinaResponseDTO.AsesorInfo.builder()
+                    .nombreCompleto("Asesor No Asignado")
+                    .correo("contacto@habitarinmobiliaria.co")
+                    .telefono("No disponible")
+                    .fotoUrl("https://via.placeholder.com/200?text=Sin+Foto")
+                    .linkMeeting("https://habitarinmobiliaria.co/contacto")
+                    .build();
+        }
+
+        try {
+            // 2. Consultar datos básicos del dueño a la API de HubSpot
+            HubSpotOwnerDTO owner = hubSpotClient.obtenerAsesor(ownerId);
+
+            // 3. Declarar variables locales para la información extendida (con valores por defecto)
+            String fotoFinal;
+            String telFinal = "No disponible";
+            String meetFinal = "https://habitarinmobiliaria.co/contacto";
+
+            if (ownerId.equals(idN)) {
+                fotoFinal = fotoN; telFinal = telN; meetFinal = meetN;
+            } else if (ownerId.equals(idS)) {
+                fotoFinal = fotoS; telFinal = telS; meetFinal = meetS;
+            } else if (ownerId.equals(idJ)) {
+                fotoFinal = fotoJ; telFinal = telJ; meetFinal = meetJ;
+            } else if (ownerId.equals(idD)) {
+                fotoFinal = fotoD; telFinal = telD; meetFinal = meetD;
+            } else if (ownerId.equals(idM)) {
+                fotoFinal = fotoM; telFinal = telM; meetFinal = meetM;
+            } else {
+                // Fallback para cualquier otro owner no configurado
+                fotoFinal = "https://via.placeholder.com/200?text=Asesor";
+            }
+
+
+            // 5. Construcción del DTO de respuesta
+            return VitrinaResponseDTO.AsesorInfo.builder()
+                    .nombreCompleto(owner.getFirstName() + " " + (owner.getLastName() != null ? owner.getLastName() : ""))
+                    .correo(owner.getEmail())
+                    .telefono(telFinal)
+                    .fotoUrl(fotoFinal)
+                    .linkMeeting(meetFinal)
+                    .build();
+
+        } catch (Exception e) {
+            log.error("Error obteniendo datos del asesor con ID {}: {}", ownerId, e.getMessage());
+            // Fallback total en caso de error de red o API
+            return VitrinaResponseDTO.AsesorInfo.builder()
+                    .nombreCompleto("Asesor Inmobiliario")
+                    .fotoUrl("https://via.placeholder.com/200?text=Asesor")
+                    .build();
         }
     }
 

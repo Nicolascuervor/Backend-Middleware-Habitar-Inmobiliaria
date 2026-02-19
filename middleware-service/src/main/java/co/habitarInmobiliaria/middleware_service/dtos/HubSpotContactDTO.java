@@ -2,6 +2,7 @@ package co.habitarinmobiliaria.middleware_service.dtos;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 @Data
@@ -17,6 +18,12 @@ public class HubSpotContactDTO {
 
         private String firstname;
         private String lastname;
+
+        @JsonProperty("hs_avatar_filemanager_key")
+        private String avatarKey;
+
+        @JsonProperty("hubspot_owner_id")
+        private String ownerId;
 
         // Mapeamos los 5 espacios de la vitrina
         // NOTA: Usamos el nombre exacto del JSON 'listing_1'

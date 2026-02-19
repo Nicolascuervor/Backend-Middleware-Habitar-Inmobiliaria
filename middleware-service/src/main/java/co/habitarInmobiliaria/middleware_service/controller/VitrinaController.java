@@ -3,6 +3,7 @@ package co.habitarinmobiliaria.middleware_service.controller;
 
 import co.habitarinmobiliaria.middleware_service.dtos.AsignarInmuebleDTO;
 import co.habitarinmobiliaria.middleware_service.dtos.VitrinaInmuebleDTO;
+import co.habitarinmobiliaria.middleware_service.dtos.VitrinaResponseDTO;
 import co.habitarinmobiliaria.middleware_service.service.OrquestadorService;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
@@ -27,22 +28,21 @@ public class VitrinaController {
      * @return Lista de inmuebles simplificados (DTOs).
      */
     @GetMapping("/{usuarioToken}")
-    public ResponseEntity<List<VitrinaInmuebleDTO>> obtenerVitrina(@PathVariable String usuarioToken) {
-
+    @Operation(summary = "Obtener vitrina completa", description = "Retorna el perfil del asesor y la lista de inmuebles.")
+    public ResponseEntity<VitrinaResponseDTO> obtenerVitrina(@PathVariable String usuarioToken) {
         log.info("Solicitud REST recibida para token: {}", usuarioToken);
 
-        // 1. Delegamos la lógica al servicio (El cerebro)
-        List<VitrinaInmuebleDTO> vitrina = orquestadorService.procesarVitrina(usuarioToken);
+        // 1. Delegamos la lógica al servicio.
+        // ¡OJO! Ahora recibimos el Wrapper completo, no una lista.
+        VitrinaResponseDTO vitrinaResponse = orquestadorService.procesarVitrina(usuarioToken);
 
-        // 2. Decidimos la respuesta HTTP
-        if (vitrina.isEmpty()) {
-            // Opción A: Devolver 200 OK con lista vacía (Mejor para el Frontend React/Vue)
-            // Opción B: Devolver 204 No Content (Técnicamente correcto, pero a veces complica al front)
+        // 2. Verificamos si la lista interna de inmuebles está vacía para el log
+        if (vitrinaResponse.getInmuebles().isEmpty()) {
             log.info("Vitrina vacía para el token: {}", usuarioToken);
-            return ResponseEntity.ok(vitrina);
         }
 
-        return ResponseEntity.ok(vitrina);
+        // 3. Devolvemos el 200 OK con nuestro objeto perfectamente empaquetado
+        return ResponseEntity.ok(vitrinaResponse);
     }
 
     @GetMapping("/{usuarioToken}/{inmuebleId}")
@@ -98,7 +98,6 @@ public class VitrinaController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
-
 
 
 }
