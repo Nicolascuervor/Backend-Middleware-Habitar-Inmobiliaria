@@ -137,6 +137,7 @@ public class OrquestadorService {
                 )
                 .filter(Objects::nonNull) // Ignoramos nulos
                 .map(url -> mapperService.extraerIdDeUrl(url)) // Extraemos el ID de cada URL de HubSpot
+                .filter(Objects::nonNull) // Evitamos NPE si el ID es nulo
                 .anyMatch(idEnHubSpot -> idEnHubSpot.equals(inmuebleIdSolicitado)); // ¿Coincide alguno?
 
         if (!tienePermiso) {
@@ -339,7 +340,6 @@ public class OrquestadorService {
                     .build();
         }
     }
-
 
 
 }

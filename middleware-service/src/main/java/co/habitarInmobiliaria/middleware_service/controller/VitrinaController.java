@@ -98,6 +98,4 @@ public class VitrinaController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
-
-
 }
