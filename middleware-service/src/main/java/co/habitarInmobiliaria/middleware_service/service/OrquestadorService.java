@@ -286,57 +286,52 @@ public class OrquestadorService {
 
 
     private VitrinaResponseDTO.AsesorInfo construirInfoAsesor(String ownerId) {
-        // 1. Caso de seguridad: Si el contacto no tiene dueño asignado en HubSpot
+        log.info("Iniciando mapeo para OwnerId: [{}]", ownerId);
+
         if (ownerId == null || ownerId.trim().isEmpty()) {
             return VitrinaResponseDTO.AsesorInfo.builder()
                     .nombreCompleto("Asesor No Asignado")
-                    .correo("contacto@habitarinmobiliaria.co")
-                    .telefono("No disponible")
                     .fotoUrl("https://via.placeholder.com/200?text=Sin+Foto")
-                    .linkMeeting("https://habitarinmobiliaria.co/contacto")
                     .build();
         }
 
         try {
-            // 2. Consultar datos básicos del dueño a la API de HubSpot
             HubSpotOwnerDTO owner = hubSpotClient.obtenerAsesor(ownerId);
 
-            // 3. Declarar variables locales para la información extendida (con valores por defecto)
-            String fotoFinal;
-            String telFinal = "No disponible";
-            String meetFinal = "https://habitarinmobiliaria.co/contacto";
+            // Variables que llevaremos al Builder
+            String f, t, m;
 
+            // COMPARACIÓN DIRECTA CON LAS VARIABLES INYECTADAS
             if (ownerId.equals(idN)) {
-                fotoFinal = fotoN; telFinal = telN; meetFinal = meetN;
+                f = fotoN; t = telN; m = meetN;
             } else if (ownerId.equals(idS)) {
-                fotoFinal = fotoS; telFinal = telS; meetFinal = meetS;
+                f = fotoS; t = telS; m = meetS;
             } else if (ownerId.equals(idJ)) {
-                fotoFinal = fotoJ; telFinal = telJ; meetFinal = meetJ;
+                f = fotoJ; t = telJ; m = meetJ;
             } else if (ownerId.equals(idD)) {
-                fotoFinal = fotoD; telFinal = telD; meetFinal = meetD;
+                f = fotoD; t = telD; m = meetD;
             } else if (ownerId.equals(idM)) {
-                fotoFinal = fotoM; telFinal = telM; meetFinal = meetM;
+                f = fotoM; t = telM; m = meetM;
             } else {
-                // Fallback para cualquier otro owner no configurado
-                fotoFinal = "https://via.placeholder.com/200?text=Asesor";
+                log.warn("OwnerId [{}] no coincide con ningún asesor configurado", ownerId);
+                f = "https://via.placeholder.com/200?text=Asesor";
+                t = "No disponible";
+                m = "https://habitarinmobiliaria.co/contacto";
             }
 
-
-            // 5. Construcción del DTO de respuesta
             return VitrinaResponseDTO.AsesorInfo.builder()
                     .nombreCompleto(owner.getFirstName() + " " + (owner.getLastName() != null ? owner.getLastName() : ""))
                     .correo(owner.getEmail())
-                    .telefono(telFinal)
-                    .fotoUrl(fotoFinal)
-                    .linkMeeting(meetFinal)
+                    .telefono(t)
+                    .fotoUrl(f)
+                    .linkMeeting(m)
                     .build();
 
         } catch (Exception e) {
-            log.error("Error obteniendo datos del asesor con ID {}: {}", ownerId, e.getMessage());
-            // Fallback total en caso de error de red o API
+            log.error("Error crítico en construirInfoAsesor para ID {}: {}", ownerId, e.getMessage());
             return VitrinaResponseDTO.AsesorInfo.builder()
-                    .nombreCompleto("Asesor Inmobiliario")
-                    .fotoUrl("https://via.placeholder.com/200?text=Asesor")
+                    .nombreCompleto("Error al cargar asesor")
+                    .fotoUrl("https://via.placeholder.com/200?text=Error")
                     .build();
         }
     }
