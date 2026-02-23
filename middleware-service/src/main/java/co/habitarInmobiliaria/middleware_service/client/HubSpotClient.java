@@ -1,12 +1,11 @@
 package co.habitarinmobiliaria.middleware_service.client;
 
 import co.habitarinmobiliaria.middleware_service.config.HubSpotFeignConfig;
-import co.habitarinmobiliaria.middleware_service.dtos.HubSpotContactDTO;
-import co.habitarinmobiliaria.middleware_service.dtos.HubSpotOwnerDTO;
-import co.habitarinmobiliaria.middleware_service.dtos.HubSpotSearchRequestDTO;
-import co.habitarinmobiliaria.middleware_service.dtos.HubSpotSearchResponseDTO;
+import co.habitarinmobiliaria.middleware_service.dtos.*;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @FeignClient(name = "hubspot-client", url = "https://api.hubapi.com", configuration = HubSpotFeignConfig.class)
 public interface HubSpotClient {
@@ -34,4 +33,18 @@ public interface HubSpotClient {
     HubSpotSearchResponseDTO buscarContactos(
             @RequestBody HubSpotSearchRequestDTO requestBody
     );
+
+    @GetMapping("/crm/v3/objects/contacts/{contactId}")
+    HubSpotContactDTO obtenerDetalleContacto(
+            @PathVariable("contactId") String contactId,
+            @RequestParam("properties") List<String> properties
+    );
+
+    // Si necesitas traer todos los clientes de un asesor con sus listings:
+    @GetMapping("/crm/v3/objects/contacts")
+    HubSpotResponseDTO buscarContactos(
+            @RequestParam("count") int count,
+            @RequestParam("properties") List<String> properties
+    );
+
 }

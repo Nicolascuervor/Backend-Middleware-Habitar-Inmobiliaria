@@ -25,8 +25,6 @@ public class HubSpotContactDTO {
         @JsonProperty("hubspot_owner_id")
         private String ownerId;
 
-        // Mapeamos los 5 espacios de la vitrina
-        // NOTA: Usamos el nombre exacto del JSON 'listing_1'
         @JsonAlias("listing_1")
         private String listing1;
 
