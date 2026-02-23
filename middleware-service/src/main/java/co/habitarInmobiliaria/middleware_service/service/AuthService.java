@@ -17,8 +17,8 @@ public class AuthService {
     private final JwtService jwtService;
     private final PasswordEncoder passwordEncoder;
 
-    // Nombre exacto de tu tabla en Airtable (ajusta si se llama distinto)
-    private static final String TABLA_ASESORES = "Asesores";
+    // Usamos el Table ID proporcionado por la documentación oficial de Airtable
+    private static final String TABLA_ASESORES = "tblLV7ZSUuV4Gu7Hv";
 
     public AuthResponseDTO login(LoginRequestDTO request) {
         log.info("Intento de login para: {}", request.correo());
@@ -51,7 +51,7 @@ public class AuthService {
         }
 
         // 5. Generamos el Token JWT
-        String token = jwtService.generarToken(asesor.correo());
+        String token = jwtService.generarToken(asesor.correo(), asesor.hubspotOwnerId());
 
         return new AuthResponseDTO(token, asesor.nombre(), asesor.correo());
     }

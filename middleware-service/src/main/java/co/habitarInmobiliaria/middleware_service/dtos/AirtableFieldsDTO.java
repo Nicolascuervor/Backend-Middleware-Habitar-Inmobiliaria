@@ -6,5 +6,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public record AirtableFieldsDTO(
         @JsonProperty("Nombre") String nombre,
         @JsonProperty("Correo") String correo,
-        @JsonProperty("Password") String password
+        @JsonProperty("Password") String password,
+        @JsonProperty("HubspotOwnerId") String hubspotOwnerId
 ){}

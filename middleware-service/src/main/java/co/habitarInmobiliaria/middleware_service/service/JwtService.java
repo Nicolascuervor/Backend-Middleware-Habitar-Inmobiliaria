@@ -23,14 +23,20 @@ public class JwtService {
         return Keys.hmacShaKeyFor(secretKey.getBytes());
     }
 
-    public String generarToken(String correoAsesor) {
+    public String generarToken(String correoAsesor, String hubspotOwnerId) {
         return Jwts.builder()
                 .subject(correoAsesor)
+                .claim("ownerId", hubspotOwnerId) // <-- NUEVO: Guardamos el ID dentro del token
                 .issuedAt(new Date(System.currentTimeMillis()))
                 .expiration(new Date(System.currentTimeMillis() + jwtExpiration))
                 .signWith(getSigningKey())
                 .compact();
     }
+
+    public String extraerOwnerId(String token) {
+        return extraerTodosLosClaims(token).get("ownerId", String.class);
+    }
+
 
     public String extraerCorreo(String token) {
         return extraerTodosLosClaims(token).getSubject();
