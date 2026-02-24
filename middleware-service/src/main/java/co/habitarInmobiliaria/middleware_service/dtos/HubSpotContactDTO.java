@@ -25,23 +25,28 @@ public class HubSpotContactDTO {
         @JsonProperty("hubspot_owner_id")
         private String ownerId;
 
-        @JsonAlias("listing_1")
+        @JsonProperty("listing_1") // <-- Cambiar Alias por Property
         private String listing1;
 
-        @JsonAlias("listing_2")
+        @JsonProperty("listing_2")
         private String listing2;
 
-        @JsonAlias("listing_3")
+        @JsonProperty("listing_3")
         private String listing3;
 
-        @JsonAlias("listing_4")
+        @JsonProperty("listing_4")
         private String listing4;
 
-        @JsonAlias("listing_5")
+        @JsonProperty("listing_5")
         private String listing5;
 
-        // TODO: Si deciden implementar la lógica de descartes, agreguen aquí el campo:
-        // @JsonAlias("inmuebles_descartados")
-        // private String inmueblesDescartados;
+        @com.fasterxml.jackson.annotation.JsonIgnore
+        private java.util.Map<String, String> propiedadesDinamicas = new java.util.HashMap<>();
+
+        @com.fasterxml.jackson.annotation.JsonAnySetter
+        public void setPropiedadDinamica(String key, String value) {
+            propiedadesDinamicas.put(key, value);
+
+        }
     }
 }

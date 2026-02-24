@@ -10,6 +10,9 @@ public class HubSpotSearchRequestDTO {
     private List<FilterGroup> filterGroups;
     private List<String> properties;
 
+    private Integer limit;
+    private String after;
+
     @Data
     @Builder
     public static class FilterGroup {

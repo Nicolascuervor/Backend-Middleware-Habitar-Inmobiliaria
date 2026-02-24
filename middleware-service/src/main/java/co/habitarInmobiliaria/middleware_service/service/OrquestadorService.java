@@ -337,27 +337,5 @@ public class OrquestadorService {
     }
 
 
-    public List<ClienteAsesorDTO> obtenerMisClientes(String ownerId) {
-        // 1. Obtener los contactos asociados al asesor desde HubSpot
-        // (Asumo que ya tienes un método que filtra por ownerId)
-        List<HubSpotContactDTO> contactos = hubSpotClient.buscarContactosPorOwner(ownerId);
-
-        return contactos.stream().map(contacto -> {
-            Map<String, String> properties = contacto.getProperties();
-
-            // 2. Filtrar dinámicamente cualquier propiedad que empiece por "listing_"
-            Map<String, String> listingsDinamicos = properties.entrySet().stream()
-                    .filter(entry -> entry.getKey().startsWith("listing_") && entry.getValue() != null)
-                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-
-            // 3. Construir el objeto de respuesta
-            return ClienteAsesorDTO.builder()
-                    .idContacto(contacto.getId())
-                    .nombreCompleto(properties.get("firstname") + " " + properties.get("lastname"))
-                    .listings(listingsDinamicos)
-                    .build();
-        }).collect(Collectors.toList());
-    }
-
 
 }

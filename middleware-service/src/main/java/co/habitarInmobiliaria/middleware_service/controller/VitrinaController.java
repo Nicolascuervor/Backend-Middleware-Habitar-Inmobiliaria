@@ -15,7 +15,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/vitrina")
-@CrossOrigin(origins = "*")
 @RequiredArgsConstructor
 @Slf4j
 public class VitrinaController {

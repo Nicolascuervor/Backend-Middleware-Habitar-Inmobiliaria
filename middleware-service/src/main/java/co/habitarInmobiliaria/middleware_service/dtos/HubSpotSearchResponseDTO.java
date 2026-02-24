@@ -7,4 +7,5 @@ import java.util.List;
 public class HubSpotSearchResponseDTO {
     private int total;
     private List<HubSpotContactDTO> results;
+    private HubSpotResponseDTO.Paging paging;
 }
