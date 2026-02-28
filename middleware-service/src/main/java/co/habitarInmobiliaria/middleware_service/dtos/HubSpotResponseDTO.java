@@ -10,10 +10,10 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class HubSpotResponseDTO {
-    // HubSpot devuelve los objetos dentro de un array llamado "results"
+    /* Resultados de HubSpot */
     private List<HubSpotContactDTO> results;
 
-    // Para manejo de paginación (opcional por ahora, pero buena práctica)
+    /* Paginación */
     private Paging paging;
 
     @Data

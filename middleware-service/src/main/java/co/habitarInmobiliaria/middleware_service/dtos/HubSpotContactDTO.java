@@ -25,7 +25,7 @@ public class HubSpotContactDTO {
         @JsonProperty("hubspot_owner_id")
         private String ownerId;
 
-        @JsonProperty("listing_1") // <-- Cambiar Alias por Property
+        @JsonProperty("listing_1")
         private String listing1;
 
         @JsonProperty("listing_2")

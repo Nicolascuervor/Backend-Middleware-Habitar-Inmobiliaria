@@ -17,7 +17,7 @@ import java.util.Map;
 public class ClienteAsesorDTO {
     private String idContacto;
     private String nombreCompleto;
-    // Esto permite que el JSON tenga "listing_1": "url", "listing_2": "url" dinámicamente
+    /* Listings serializados dinámicamente en JSON */
     @JsonAnyGetter
     private Map<String, String> listings;
 

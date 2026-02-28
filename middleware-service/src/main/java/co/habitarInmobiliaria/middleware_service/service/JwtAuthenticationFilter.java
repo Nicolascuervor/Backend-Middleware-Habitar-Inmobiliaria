@@ -29,31 +29,29 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         final String jwt;
         final String correoAsesor;
 
-        // Si no hay token o no empieza con "Bearer ", pasamos al siguiente filtro (rechazará la petición si era privada)
+        /* Sin token Bearer, pasar al siguiente filtro */
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        // Extraemos el token (quitamos los primeros 7 caracteres: "Bearer ")
+        /* Extraer token */
         jwt = authHeader.substring(7);
         try {
             correoAsesor = jwtService.extraerCorreo(jwt);
 
-            // Si hay correo y el usuario no está autenticado aún en el contexto de Spring
+            /* Autenticar si aún no está en el contexto */
             if (correoAsesor != null && SecurityContextHolder.getContext().getAuthentication() == null) {
 
                 if (jwtService.esTokenValido(jwt, correoAsesor)) {
-                    // Autorizamos explícitamente la petición
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                            correoAsesor, null, new ArrayList<>() // Aquí irían los roles/autorizaciones si tuvieras
-                    );
+                            correoAsesor, null, new ArrayList<>());
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                 }
             }
         } catch (Exception e) {
-            // Si el token expira o es inválido, el contexto queda nulo y Spring Security lanzará 401
+            /* Token inválido o expirado */
             logger.error("Error validando token JWT: " + e.getMessage());
         }
 

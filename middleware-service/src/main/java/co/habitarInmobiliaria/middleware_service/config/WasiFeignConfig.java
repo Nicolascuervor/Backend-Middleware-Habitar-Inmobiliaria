@@ -15,11 +15,11 @@ public class WasiFeignConfig {
     @Bean
     public RequestInterceptor requestInterceptor() {
         return requestTemplate -> {
-            // CAMBIO: Enviar credenciales como Query Params (?key=val) en lugar de Headers
+            /* Credenciales como Query Params */
             requestTemplate.query("id_company", idCompany);
             requestTemplate.query("wasi_token", wasiToken);
 
-            // Mantenemos el Content-Type por si acaso
+            /* Content-Type */
             requestTemplate.header("Content-Type", "application/json");
         };
     }

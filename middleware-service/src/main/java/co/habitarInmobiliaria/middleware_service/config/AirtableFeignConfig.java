@@ -13,15 +13,14 @@ public class AirtableFeignConfig {
     @Bean
     public RequestInterceptor airtableRequestInterceptor() {
         return requestTemplate -> {
-            // Airtable requiere que el token se envíe como un Bearer Token
+            /* Bearer Token para Airtable */
             requestTemplate.header("Authorization", "Bearer " + airtableToken);
         };
     }
 
-    // --- NUEVO CÓDIGO PARA DEBUG ---
+    /* Nivel de logging Feign */
     @Bean
     Logger.Level feignLoggerLevel() {
-        // FULL imprimirá los headers (incluyendo el token), el cuerpo y la URL exacta
         return Logger.Level.FULL;
     }
 }

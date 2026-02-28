@@ -1,4 +1,5 @@
 package co.habitarinmobiliaria.middleware_service.config;
+
 import co.habitarinmobiliaria.middleware_service.service.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -18,7 +19,6 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.Arrays;
 import java.util.List;
 
-
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
@@ -32,18 +32,16 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
-                        // 1. IMPORTANTE: Permitir explícitamente el Preflight (OPTIONS)
+                        /* Permitir preflight OPTIONS */
                         .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
-                        // 2. Rutas públicas
+                        /* Rutas públicas */
                         .requestMatchers("/api/v1/vitrina/**").permitAll()
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
-                        // 3. Rutas protegidas
-                        .anyRequest().authenticated()
-                )
+                        /* Rutas protegidas */
+                        .anyRequest().authenticated())
                 .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                )
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
@@ -53,13 +51,12 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // 3. CAMBIO CLAVE: Usamos setAllowedOrigins explícitos en lugar de Patterns
+        /* Orígenes permitidos */
         configuration.setAllowedOrigins(List.of(
-                "http://localhost:8000", // <-- ¡Tu frontend!
+                "http://localhost:8000",
                 "http://localhost:3000",
                 "http://localhost:5173",
-                "http://localhost:4200"
-        ));
+                "http://localhost:4200"));
 
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));

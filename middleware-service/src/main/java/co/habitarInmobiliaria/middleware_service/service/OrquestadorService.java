@@ -1,6 +1,7 @@
 package co.habitarinmobiliaria.middleware_service.service;
 
-
+import co.habitarinmobiliaria.middleware_service.Strategy.EstadoInmuebleStrategy;
+import co.habitarinmobiliaria.middleware_service.client.AirtableClient;
 import co.habitarinmobiliaria.middleware_service.client.HubSpotClient;
 import co.habitarinmobiliaria.middleware_service.client.WasiClient;
 import co.habitarinmobiliaria.middleware_service.dtos.*;
@@ -16,13 +17,24 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Service
-@RequiredArgsConstructor // Inyección de dependencias por constructor (Lombok)
+@RequiredArgsConstructor
 @Slf4j
 public class OrquestadorService {
 
+    private final List<EstadoInmuebleStrategy> estrategias;
     private final HubSpotClient hubSpotClient;
     private final WasiClient wasiClient;
     private final InmuebleMapperService mapperService;
+    private final AirtableClient airtableClient;
+
+    @Value("${airtable.token}")
+    private String airtableToken;
+
+    @Value("${airtable.base.id}")
+    private String baseId;
+
+    @Value("${airtable.table.inmuebles}")
+    private String tableName;
 
     @Value("${asesor.n.id}")
     private String idN;
@@ -36,182 +48,268 @@ public class OrquestadorService {
     @Value("${asesor.n.meet}")
     private String meetN;
 
+    /* Asesor S */
+    @Value("${asesor.s.id}")
+    private String idS;
+    @Value("${asesor.s.foto}")
+    private String fotoS;
+    @Value("${asesor.s.tel}")
+    private String telS;
+    @Value("${asesor.s.meet}")
+    private String meetS;
 
-    // --- ASESOR S ---
-    @Value("${asesor.s.id}") private String idS;
-    @Value("${asesor.s.foto}") private String fotoS;
-    @Value("${asesor.s.tel}") private String telS;
-    @Value("${asesor.s.meet}") private String meetS;
+    /* Asesor J */
+    @Value("${asesor.j.id}")
+    private String idJ;
+    @Value("${asesor.j.foto}")
+    private String fotoJ;
+    @Value("${asesor.j.tel}")
+    private String telJ;
+    @Value("${asesor.j.meet}")
+    private String meetJ;
 
-    // --- ASESOR J ---
-    @Value("${asesor.j.id}") private String idJ;
-    @Value("${asesor.j.foto}") private String fotoJ;
-    @Value("${asesor.j.tel}") private String telJ;
-    @Value("${asesor.j.meet}") private String meetJ;
+    /* Asesor D */
+    @Value("${asesor.d.id}")
+    private String idD;
+    @Value("${asesor.d.foto}")
+    private String fotoD;
+    @Value("${asesor.d.tel}")
+    private String telD;
+    @Value("${asesor.d.meet}")
+    private String meetD;
 
-    // --- ASESOR D ---
-    @Value("${asesor.d.id}") private String idD;
-    @Value("${asesor.d.foto}") private String fotoD;
-    @Value("${asesor.d.tel}") private String telD;
-    @Value("${asesor.d.meet}") private String meetD;
+    /* Asesor M */
+    @Value("${asesor.m.id}")
+    private String idM;
+    @Value("${asesor.m.foto}")
+    private String fotoM;
+    @Value("${asesor.m.tel}")
+    private String telM;
+    @Value("${asesor.m.meet}")
+    private String meetM;
 
-    // --- ASESOR M ---
-    @Value("${asesor.m.id}") private String idM;
-    @Value("${asesor.m.foto}") private String fotoM;
-    @Value("${asesor.m.tel}") private String telM;
-    @Value("${asesor.m.meet}") private String meetM;
+    public void procesarCambioEstado(String usuarioToken, String urlRecibida, String accion) {
+        log.info("Procesando cambio de estado: {} para URL: {}", accion, urlRecibida);
 
+        /* Buscar estrategia correcta */
+        EstadoInmuebleStrategy estrategia = estrategias.stream()
+                .filter(s -> s.aplicaPara(accion))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Acción no permitida: " + accion));
 
-    public VitrinaResponseDTO procesarVitrina(String usuarioToken) { // <-- 1. Cambiamos el tipo de retorno
+        /* Extraer ID de la URL */
+        String idTarget = mapperService.extraerIdDeUrl(urlRecibida);
+
+        if (idTarget == null) {
+            throw new IllegalArgumentException("No se pudo extraer un ID válido de la URL proporcionada");
+        }
+
+        /* Obtener contacto de HubSpot */
+        HubSpotContactDTO contacto = hubSpotClient.obtenerContacto(usuarioToken,
+                "listing_1,listing_2,listing_3,listing_4,listing_5");
+
+        if (contacto == null || contacto.getProperties() == null) {
+            throw new RecursoNoEncontradoException("No se encontró el contacto en HubSpot");
+        }
+
+        HubSpotContactDTO.PropertiesDTO props = contacto.getProperties();
+        String[] slots = { props.getListing1(), props.getListing2(), props.getListing3(), props.getListing4(),
+                props.getListing5() };
+        String[] nombresCampos = { "listing_1", "listing_2", "listing_3", "listing_4", "listing_5" };
+
+        /* Buscar y actualizar el slot correcto */
+        for (int i = 0; i < 5; i++) {
+            if (slots[i] != null) {
+                String idEnSlot = mapperService.extraerIdDeUrl(slots[i]);
+
+                if (idTarget.equals(idEnSlot)) {
+
+                    /* Quitar estado previo y aplicar nuevo */
+                    String urlBase = slots[i].replaceAll("-[A-Z_]+$", "");
+                    String urlNueva = urlBase + estrategia.getSufijo();
+
+                    log.info("Actualizando slot {} con nueva URL: {}", nombresCampos[i], urlNueva);
+                    actualizarEnHubSpot(usuarioToken, nombresCampos[i], urlNueva);
+                    return;
+                }
+            }
+        }
+        throw new RecursoNoEncontradoException("El inmueble no pertenece a la vitrina de este cliente");
+    }
+
+    private void actualizarEnHubSpot(String token, String campo, String valor) {
+        Map<String, String> prop = Collections.singletonMap(campo, valor);
+        hubSpotClient.actualizarContacto(token, Collections.singletonMap("properties", prop));
+    }
+
+    public VitrinaResponseDTO procesarVitrina(String usuarioToken) {
         log.info("Iniciando orquestación completa para usuario: {}", usuarioToken);
 
-        // 1. Obtener datos de HubSpot
+        /* Obtener datos de HubSpot */
         String propiedadesSolicitadas = "firstname,listing_1,listing_2,listing_3,listing_4,listing_5,hubspot_owner_id";
         HubSpotContactDTO contacto = hubSpotClient.obtenerContacto(usuarioToken, propiedadesSolicitadas);
 
-        // Validamos si el contacto existe
+        /* Validar contacto */
         if (contacto == null || contacto.getProperties() == null) {
             log.warn("Usuario no encontrado o sin propiedades: {}", usuarioToken);
-            // Retornamos el Wrapper vacío de forma segura
             return VitrinaResponseDTO.builder()
                     .asesor(construirInfoAsesor(null))
                     .inmuebles(new ArrayList<>())
                     .build();
         }
 
-        // 2. Extraer URLs de los listings (ignorando nulos)
+        /* Extraer URLs de listings */
         HubSpotContactDTO.PropertiesDTO props = contacto.getProperties();
         List<String> urlsListings = Stream.of(
                 props.getListing1(),
                 props.getListing2(),
                 props.getListing3(),
                 props.getListing4(),
-                props.getListing5()
-        ).filter(Objects::nonNull).collect(Collectors.toList());
+                props.getListing5()).filter(Objects::nonNull).collect(Collectors.toList());
 
         List<VitrinaInmuebleDTO> vitrinaFinal = new ArrayList<>();
 
-        // 3. Iterar y consultar Wasi (Tu lógica intacta y resiliente)
+        /* Iterar y consultar cada inmueble */
         for (String url : urlsListings) {
+
             String inmuebleId = mapperService.extraerIdDeUrl(url);
+            String estadoDelInmueble = mapperService.extraerEstadoDeUrl(url);
 
             if (inmuebleId != null) {
                 try {
-                    WasiInmuebleDTO inmuebleRaw = wasiClient.obtenerInmueblePorId(inmuebleId);
-                    if (inmuebleRaw != null) {
-                        vitrinaFinal.add(mapperService.mapToVitrina(inmuebleRaw));
+                    /* Ruta Airtable o Wasi según el ID */
+                    if (inmuebleId.startsWith("rec")) {
+                        log.info("Vitrina - Consultando Airtable para ID: {}", inmuebleId);
+                        String tokenFormateado = "Bearer " + airtableToken;
+                        com.fasterxml.jackson.databind.JsonNode airtableRecord = airtableClient.obtenerRegistro(
+                                tokenFormateado, tableName, inmuebleId);
+
+                        if (airtableRecord != null && airtableRecord.has("fields")) {
+                            vitrinaFinal
+                                    .add(mapperService.mapAirtableToVitrina(airtableRecord, estadoDelInmueble, url));
+                        }
+                    } else {
+                        log.info("Vitrina - Consultando Wasi para ID: {}", inmuebleId);
+                        WasiInmuebleDTO inmuebleRaw = wasiClient.obtenerInmueblePorId(inmuebleId);
+
+                        if (inmuebleRaw != null) {
+                            vitrinaFinal.add(mapperService.mapToVitrina(inmuebleRaw, estadoDelInmueble, url));
+                        }
                     }
                 } catch (Exception e) {
+                    /* Tolerancia a fallos por inmueble */
                     log.error("Error obteniendo inmueble {}: {}", inmuebleId, e.getMessage());
                 }
             }
         }
 
-        // 4. Construir la información del Asesor
-        String ownerId = props.getOwnerId(); // Extraemos el ID del dueño
+        /* Construir info del asesor */
+        String ownerId = props.getOwnerId();
         VitrinaResponseDTO.AsesorInfo infoAsesor = construirInfoAsesor(ownerId);
 
-        // 5. Empaquetar y retornar el objeto final
+        /* Retornar respuesta final */
         return VitrinaResponseDTO.builder()
                 .asesor(infoAsesor)
                 .inmuebles(vitrinaFinal)
                 .build();
     }
 
+    public InmuebleDetalleDTO obtenerInmuebleEspecifico(String usuarioToken, String inmuebleId) {
 
-    public VitrinaInmuebleDTO obtenerInmuebleEspecifico(String usuarioToken, String inmuebleIdSolicitado) {
-        log.info("Solicitando detalle inmueble {} para usuario {}", inmuebleIdSolicitado, usuarioToken);
-
-        // 1. Consultar HubSpot para verificar permisos (Seguridad)
+        /* Obtener estado desde HubSpot */
         HubSpotContactDTO contacto = hubSpotClient.obtenerContacto(usuarioToken,
-                "firstname,listing_1,listing_2,listing_3,listing_4,listing_5,hs_avatar_filemanager_key");
+                "listing_1,listing_2,listing_3,listing_4,listing_5");
+        String estadoActual = "SIN_REVISAR";
 
-        if (contacto == null || contacto.getProperties() == null) {
-            throw new RecursoNoEncontradoException("Cliente no encontrado en HubSpot");
-        }
-
-        // 2. Verificar si el ID solicitado está en los listings del cliente
-        HubSpotContactDTO.PropertiesDTO props = contacto.getProperties();
-        boolean tienePermiso = Stream.of(
-                        props.getListing1(), props.getListing2(), props.getListing3(), props.getListing4(), props.getListing5()
-                )
-                .filter(Objects::nonNull) // Ignoramos nulos
-                .map(url -> mapperService.extraerIdDeUrl(url)) // Extraemos el ID de cada URL de HubSpot
-                .filter(Objects::nonNull) // Evitamos NPE si el ID es nulo
-                .anyMatch(idEnHubSpot -> idEnHubSpot.equals(inmuebleIdSolicitado)); // ¿Coincide alguno?
-
-        if (!tienePermiso) {
-            // Si el cliente no tiene esa casa asignada, bloqueamos el acceso
-            log.warn("Intento de acceso no autorizado: Usuario {} intentó ver inmueble {}", usuarioToken, inmuebleIdSolicitado);
-            throw new RecursoNoEncontradoException("El inmueble no se encuentra en su vitrina asignada.");
-        }
-
-        // 3. Si tiene permiso, vamos a Wasi a buscar el detalle fresco
-        try {
-            WasiInmuebleDTO inmuebleRaw = wasiClient.obtenerInmueblePorId(inmuebleIdSolicitado);
-            if (inmuebleRaw == null) {
-                throw new RecursoNoEncontradoException("El inmueble existe en HubSpot pero Wasi no devolvió datos.");
+        if (contacto != null && contacto.getProperties() != null) {
+            HubSpotContactDTO.PropertiesDTO props = contacto.getProperties();
+            String[] slots = { props.getListing1(), props.getListing2(), props.getListing3(), props.getListing4(),
+                    props.getListing5() };
+            for (String url : slots) {
+                if (url != null && url.contains(inmuebleId)) {
+                    estadoActual = mapperService.extraerEstadoDeUrl(url);
+                    break;
+                }
             }
-            return mapperService.mapToVitrina(inmuebleRaw);
-        } catch (Exception e) {
-            log.error("Error consultando Wasi para detalle: {}", e.getMessage());
-            throw new ErrorExternoException("Error al obtener el detalle del inmueble desde el inventario.");
+        }
+
+        /* Enrutar a Airtable o Wasi */
+        if (inmuebleId != null && inmuebleId.startsWith("rec")) {
+            log.info("Enrutando petición a Airtable para el ID: {}", inmuebleId);
+
+            String tokenFormateado = "Bearer " + airtableToken;
+            com.fasterxml.jackson.databind.JsonNode airtableRecord = airtableClient.obtenerRegistro(
+                    tokenFormateado, tableName, inmuebleId);
+
+            log.info("JSON CRUDO DE AIRTABLE: {}", airtableRecord.toPrettyString());
+
+            return mapperService.mapAirtableToDetalle(airtableRecord, estadoActual);
+
+        } else {
+            log.info("Enrutando petición a Wasi para el ID: {}", inmuebleId);
+
+            WasiInmuebleDTO inmuebleRaw = wasiClient.obtenerInmueblePorId(inmuebleId);
+
+            if (inmuebleRaw == null) {
+                throw new RecursoNoEncontradoException("El inmueble con ID " + inmuebleId + " no existe en Wasi.");
+            }
+
+            return mapperService.mapToDetalle(inmuebleRaw, estadoActual);
         }
     }
-
 
     public void asignarInmuebleAutomaticamente(String usuarioToken, String urlWasi) {
         log.info("Intento de asignar inmueble para usuario: {}", usuarioToken);
 
-        // 1. Validación Básica: ¿Es una URL válida con ID?
+        /* Validar URL */
         String nuevoId = mapperService.extraerIdDeUrl(urlWasi);
         if (nuevoId == null) {
             throw new IllegalArgumentException("La URL proporcionada no es válida o no contiene un ID de Wasi.");
         }
 
-        // 2. Traer estado actual de HubSpot (Slots 1 al 5)
-        HubSpotContactDTO contacto = hubSpotClient.obtenerContacto(usuarioToken, "listing_1,listing_2,listing_3,listing_4,listing_5");
+        /* Traer slots desde HubSpot */
+        HubSpotContactDTO contacto = hubSpotClient.obtenerContacto(usuarioToken,
+                "listing_1,listing_2,listing_3,listing_4,listing_5");
         if (contacto == null || contacto.getProperties() == null) {
             throw new RecursoNoEncontradoException("Usuario no encontrado en HubSpot");
         }
 
         HubSpotContactDTO.PropertiesDTO props = contacto.getProperties();
 
-        // Array auxiliar para iterar ordenadamente
         String[] slotsActuales = {
                 props.getListing1(), props.getListing2(), props.getListing3(), props.getListing4(), props.getListing5()
         };
 
-        // Nombres técnicos de los campos en HubSpot
-        String[] nombresCampos = {"listing_1", "listing_2", "listing_3", "listing_4", "listing_5"};
+        String[] nombresCampos = { "listing_1", "listing_2", "listing_3", "listing_4", "listing_5" };
 
-        int slotDestino = -1; // -1 significa "no encontrado aún"
+        int slotDestino = -1;
 
-        // 3. Barrido de Slots (Búsqueda de duplicados y huecos vacíos)
+        /* Buscar duplicados y hueco libre */
         for (int i = 0; i < 5; i++) {
             String urlEnSlot = slotsActuales[i];
 
-            // A. Chequeo de duplicado
+            /* Verificar duplicado */
             if (urlEnSlot != null) {
                 String idExistente = mapperService.extraerIdDeUrl(urlEnSlot);
                 if (nuevoId.equals(idExistente)) {
-                    throw new IllegalStateException("El inmueble " + nuevoId + " ya está asignado en el espacio " + (i + 1));
+                    throw new IllegalStateException(
+                            "El inmueble " + nuevoId + " ya está asignado en el espacio " + (i + 1));
                 }
             }
 
-            // B. Encontrar el PRIMER hueco vacío (solo si no hemos encontrado uno antes)
+            /* Guardar primer hueco vacío */
             if (urlEnSlot == null && slotDestino == -1) {
                 slotDestino = i;
-                // NO hacemos break aquí, porque debemos seguir revisando el resto para asegurar que no haya duplicados más adelante
             }
         }
 
-        // 4. Validación de Vitrina Llena
+        /* Vitrina llena */
         if (slotDestino == -1) {
-            throw new IllegalStateException("La vitrina del cliente está llena (5/5). Debe descartar un inmueble antes de agregar otro.");
+            throw new IllegalStateException(
+                    "La vitrina del cliente está llena (5/5). Debe descartar un inmueble antes de agregar otro.");
         }
 
-        // 5. Construir el Payload para HubSpot
+        /* Actualizar en HubSpot */
         String campoDestino = nombresCampos[slotDestino];
         log.info("Asignando inmueble {} en el hueco disponible: {}", nuevoId, campoDestino);
 
@@ -221,22 +319,23 @@ public class OrquestadorService {
         Map<String, Object> requestBody = new HashMap<>();
         requestBody.put("properties", propiedadesInternas);
 
-        // 6. Ejecutar el PATCH
         hubSpotClient.actualizarContacto(usuarioToken, requestBody);
     }
 
-
     public void desasignarInmueble(String usuarioToken, String urlWasi) {
-        log.info("Solicitud de desasignar inmueble para usuario: {}", usuarioToken);
+        log.info("Solicitud de marcar inmueble como DESCARTADO para usuario: {}", usuarioToken);
 
-        // 1. Validar ID objetivo
-        String idTarget = mapperService.extraerIdDeUrl(urlWasi);
+        /* Limpiar URL de entrada */
+        String urlLimpiaRequest = urlWasi.replace("-DESCARTADO", "").replace("-APROBADO", "");
+        String idTarget = mapperService.extraerIdDeUrl(urlLimpiaRequest);
+
         if (idTarget == null) {
             throw new IllegalArgumentException("La URL proporcionada no es válida.");
         }
 
-        // 2. Traer estado actual de HubSpot
-        HubSpotContactDTO contacto = hubSpotClient.obtenerContacto(usuarioToken, "listing_1,listing_2,listing_3,listing_4,listing_5");
+        /* Traer slots desde HubSpot */
+        HubSpotContactDTO contacto = hubSpotClient.obtenerContacto(usuarioToken,
+                "listing_1,listing_2,listing_3,listing_4,listing_5");
         if (contacto == null || contacto.getProperties() == null) {
             throw new RecursoNoEncontradoException("Usuario no encontrado en HubSpot");
         }
@@ -245,45 +344,117 @@ public class OrquestadorService {
         String[] slotsActuales = {
                 props.getListing1(), props.getListing2(), props.getListing3(), props.getListing4(), props.getListing5()
         };
-        String[] nombresCampos = {"listing_1", "listing_2", "listing_3", "listing_4", "listing_5"};
+        String[] nombresCampos = { "listing_1", "listing_2", "listing_3", "listing_4", "listing_5" };
 
-        String campoABorrar = null;
+        String campoAModificar = null;
+        String urlModificada = null;
 
-        // 3. Buscar el inmueble en los slots
+        /* Buscar inmueble en slots */
         for (int i = 0; i < 5; i++) {
             String urlEnSlot = slotsActuales[i];
 
             if (urlEnSlot != null) {
-                String idEnSlot = mapperService.extraerIdDeUrl(urlEnSlot);
+                String urlLimpiaSlot = urlEnSlot.replace("-DESCARTADO", "").replace("-APROBADO", "");
+                String idEnSlot = mapperService.extraerIdDeUrl(urlLimpiaSlot);
 
                 if (idTarget.equals(idEnSlot)) {
-                    campoABorrar = nombresCampos[i];
-                    log.info("Inmueble {} encontrado en el slot {}. Procediendo a eliminar.", idTarget, campoABorrar);
-                    break; // ¡Encontrado! Dejamos de buscar.
+                    campoAModificar = nombresCampos[i];
+
+                    /* Evitar actualización redundante */
+                    if (urlEnSlot.endsWith("-DESCARTADO")) {
+                        log.warn("El inmueble {} ya estaba descartado. No se harán cambios.", idTarget);
+                        return;
+                    }
+
+                    urlModificada = urlLimpiaSlot + "-DESCARTADO";
+                    log.info("Inmueble {} encontrado en el slot {}. Marcando como DESCARTADO.", idTarget,
+                            campoAModificar);
+                    break;
                 }
             }
         }
 
-        // 4. Ejecutar borrado (si se encontró)
-        if (campoABorrar != null) {
+        /* Ejecutar actualización */
+        if (campoAModificar != null && urlModificada != null) {
             Map<String, String> propiedadesInternas = new HashMap<>();
-            // IMPORTANTE: En HubSpot, enviar una cadena vacía "" borra el contenido del campo.
-            propiedadesInternas.put(campoABorrar, "");
+            propiedadesInternas.put(campoAModificar, urlModificada);
 
             Map<String, Object> requestBody = new HashMap<>();
             requestBody.put("properties", propiedadesInternas);
 
             hubSpotClient.actualizarContacto(usuarioToken, requestBody);
+            log.info("Actualización exitosa: {} ahora es {}", campoAModificar, urlModificada);
         } else {
-            // Opción A: Lanzar error si no existe (Estricto)
-            // throw new RecursoNoEncontradoException("El inmueble no estaba asignado a este usuario.");
-
-            // Opción B: No hacer nada y retornar (Idempotente - Recomendado)
-            log.warn("El inmueble {} no estaba en la vitrina del usuario. No se hizo nada.", idTarget);
+            throw new IllegalArgumentException("El inmueble no estaba en la vitrina del usuario.");
         }
     }
 
+    public void aprobarInmueble(String usuarioToken, String urlWasi) {
+        log.info("Solicitud de marcar inmueble como APROBADO para usuario: {}", usuarioToken);
 
+        /* Limpiar URL de entrada */
+        String urlLimpiaRequest = urlWasi.replace("-DESCARTADO", "").replace("-APROBADO", "");
+        String idTarget = mapperService.extraerIdDeUrl(urlLimpiaRequest);
+
+        if (idTarget == null) {
+            throw new IllegalArgumentException("La URL proporcionada no es válida.");
+        }
+
+        /* Traer slots desde HubSpot */
+        HubSpotContactDTO contacto = hubSpotClient.obtenerContacto(usuarioToken,
+                "listing_1,listing_2,listing_3,listing_4,listing_5");
+        if (contacto == null || contacto.getProperties() == null) {
+            throw new RecursoNoEncontradoException("Usuario no encontrado en HubSpot");
+        }
+
+        HubSpotContactDTO.PropertiesDTO props = contacto.getProperties();
+        String[] slotsActuales = {
+                props.getListing1(), props.getListing2(), props.getListing3(), props.getListing4(), props.getListing5()
+        };
+        String[] nombresCampos = { "listing_1", "listing_2", "listing_3", "listing_4", "listing_5" };
+
+        String campoAModificar = null;
+        String urlModificada = null;
+
+        /* Buscar inmueble en slots */
+        for (int i = 0; i < 5; i++) {
+            String urlEnSlot = slotsActuales[i];
+
+            if (urlEnSlot != null) {
+                String urlLimpiaSlot = urlEnSlot.replace("-DESCARTADO", "").replace("-APROBADO", "");
+                String idEnSlot = mapperService.extraerIdDeUrl(urlLimpiaSlot);
+
+                if (idTarget.equals(idEnSlot)) {
+                    campoAModificar = nombresCampos[i];
+
+                    /* Evitar actualización redundante */
+                    if (urlEnSlot.endsWith("-APROBADO")) {
+                        log.warn("El inmueble {} ya estaba aprobado. No se harán cambios.", idTarget);
+                        return;
+                    }
+
+                    urlModificada = urlLimpiaSlot + "-APROBADO";
+                    log.info("Inmueble {} encontrado en el slot {}. Marcando como APROBADO.", idTarget,
+                            campoAModificar);
+                    break;
+                }
+            }
+        }
+
+        /* Ejecutar actualización */
+        if (campoAModificar != null && urlModificada != null) {
+            Map<String, String> propiedadesInternas = new HashMap<>();
+            propiedadesInternas.put(campoAModificar, urlModificada);
+
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("properties", propiedadesInternas);
+
+            hubSpotClient.actualizarContacto(usuarioToken, requestBody);
+            log.info("Actualización exitosa: {} ahora es {}", campoAModificar, urlModificada);
+        } else {
+            throw new IllegalArgumentException("El inmueble no estaba en la vitrina del usuario.");
+        }
+    }
 
     private VitrinaResponseDTO.AsesorInfo construirInfoAsesor(String ownerId) {
         log.info("Iniciando mapeo para OwnerId: [{}]", ownerId);
@@ -298,20 +469,29 @@ public class OrquestadorService {
         try {
             HubSpotOwnerDTO owner = hubSpotClient.obtenerAsesor(ownerId);
 
-            // Variables que llevaremos al Builder
+            /* Datos del asesor según ID */
             String f, t, m;
 
-            // COMPARACIÓN DIRECTA CON LAS VARIABLES INYECTADAS
             if (ownerId.equals(idN)) {
-                f = fotoN; t = telN; m = meetN;
+                f = fotoN;
+                t = telN;
+                m = meetN;
             } else if (ownerId.equals(idS)) {
-                f = fotoS; t = telS; m = meetS;
+                f = fotoS;
+                t = telS;
+                m = meetS;
             } else if (ownerId.equals(idJ)) {
-                f = fotoJ; t = telJ; m = meetJ;
+                f = fotoJ;
+                t = telJ;
+                m = meetJ;
             } else if (ownerId.equals(idD)) {
-                f = fotoD; t = telD; m = meetD;
+                f = fotoD;
+                t = telD;
+                m = meetD;
             } else if (ownerId.equals(idM)) {
-                f = fotoM; t = telM; m = meetM;
+                f = fotoM;
+                t = telM;
+                m = meetM;
             } else {
                 log.warn("OwnerId [{}] no coincide con ningún asesor configurado", ownerId);
                 f = "https://via.placeholder.com/200?text=Asesor";
@@ -320,7 +500,8 @@ public class OrquestadorService {
             }
 
             return VitrinaResponseDTO.AsesorInfo.builder()
-                    .nombreCompleto(owner.getFirstName() + " " + (owner.getLastName() != null ? owner.getLastName() : ""))
+                    .nombreCompleto(
+                            owner.getFirstName() + " " + (owner.getLastName() != null ? owner.getLastName() : ""))
                     .correo(owner.getEmail())
                     .telefono(t)
                     .fotoUrl(f)
@@ -335,7 +516,5 @@ public class OrquestadorService {
                     .build();
         }
     }
-
-
 
 }

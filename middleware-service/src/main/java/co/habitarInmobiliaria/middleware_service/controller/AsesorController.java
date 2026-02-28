@@ -22,8 +22,8 @@ public class AsesorController {
     @Operation(summary = "Obtener clientes paginados")
     public ResponseEntity<ClientesPaginadosDTO> obtenerMisClientes(
             @RequestHeader(HttpHeaders.AUTHORIZATION) String authHeader,
-            @RequestParam(defaultValue = "10") int limit, // Por defecto trae 10
-            @RequestParam(required = false) String after) { // Es opcional, la primera vez viene nulo
+            @RequestParam(defaultValue = "10") int limit,
+            @RequestParam(required = false) String after) {
 
         ClientesPaginadosDTO respuesta = asesorService.obtenerMisClientes(authHeader, limit, after);
         return ResponseEntity.ok(respuesta);

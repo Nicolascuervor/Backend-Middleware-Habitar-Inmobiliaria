@@ -6,7 +6,15 @@ import lombok.Data;
 @Data
 public class AsignarInmuebleDTO {
 
-    @Schema(description = "URL completa del inmueble generada desde Wasi",
-            example = "https://buscador.habitarinmobiliaria.co/.../9773703")
-    private String urlWasi;
+    @Schema(description = "URL completa del inmueble generada desde Wasi", example = "https://buscador.habitarinmobiliaria.co/.../9773703")
+    private String url;
+
+    /* Getter y setter de URL */
+    public String getUrl() {
+        return url;
+    }
+
+    public void setUrl(String url) {
+        this.url = url;
+    }
 }

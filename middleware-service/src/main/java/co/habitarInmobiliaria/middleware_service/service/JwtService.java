@@ -18,7 +18,7 @@ public class JwtService {
     @Value("${jwt.expiration}")
     private long jwtExpiration;
 
-    // Genera la llave criptográfica a partir del application.properties
+    /* Generar llave criptográfica */
     private SecretKey getSigningKey() {
         return Keys.hmacShaKeyFor(secretKey.getBytes());
     }
@@ -26,7 +26,7 @@ public class JwtService {
     public String generarToken(String correoAsesor, String hubspotOwnerId) {
         return Jwts.builder()
                 .subject(correoAsesor)
-                .claim("ownerId", hubspotOwnerId) // <-- NUEVO: Guardamos el ID dentro del token
+                .claim("ownerId", hubspotOwnerId)
                 .issuedAt(new Date(System.currentTimeMillis()))
                 .expiration(new Date(System.currentTimeMillis() + jwtExpiration))
                 .signWith(getSigningKey())
@@ -36,7 +36,6 @@ public class JwtService {
     public String extraerOwnerId(String token) {
         return extraerTodosLosClaims(token).get("ownerId", String.class);
     }
-
 
     public String extraerCorreo(String token) {
         return extraerTodosLosClaims(token).getSubject();
