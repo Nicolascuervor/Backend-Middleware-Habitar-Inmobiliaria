@@ -214,40 +214,46 @@ public class OrquestadorService {
                 .build();
     }
 
-    public InmuebleDetalleDTO obtenerInmuebleEspecifico(String usuarioToken, String inmuebleId) {
+    public InmuebleDetalleDTO obtenerInmuebleEspecifico(String usuarioToken, String parametroRecibido) {
 
-        /* Obtener estado desde HubSpot */
-        HubSpotContactDTO contacto = hubSpotClient.obtenerContacto(usuarioToken,
-                "listing_1,listing_2,listing_3,listing_4,listing_5");
+
+        String inmuebleId = mapperService.extraerIdDeUrl(parametroRecibido);
+
+        if (inmuebleId == null) {
+            log.error("No se pudo extraer un ID válido del parámetro recibido: {}", parametroRecibido);
+            throw new IllegalArgumentException("ID de inmueble no válido");
+        }
+
+
+        HubSpotContactDTO contacto = hubSpotClient.obtenerContacto(usuarioToken, "listing_1,listing_2,listing_3,listing_4,listing_5");
         String estadoActual = "SIN_REVISAR";
 
         if (contacto != null && contacto.getProperties() != null) {
             HubSpotContactDTO.PropertiesDTO props = contacto.getProperties();
-            String[] slots = { props.getListing1(), props.getListing2(), props.getListing3(), props.getListing4(),
-                    props.getListing5() };
+            String[] slots = {props.getListing1(), props.getListing2(), props.getListing3(), props.getListing4(), props.getListing5()};
             for (String url : slots) {
-                if (url != null && url.contains(inmuebleId)) {
+                if (url != null && url.contains(inmuebleId)) { // Comparamos usando el ID limpio
                     estadoActual = mapperService.extraerEstadoDeUrl(url);
                     break;
                 }
             }
         }
 
-        /* Enrutar a Airtable o Wasi */
-        if (inmuebleId != null && inmuebleId.startsWith("rec")) {
-            log.info("Enrutando petición a Airtable para el ID: {}", inmuebleId);
 
+        if (inmuebleId.startsWith("rec")) {
+
+            log.info("Enrutando petición de detalle a Airtable para el ID limpio: {}", inmuebleId);
             String tokenFormateado = "Bearer " + airtableToken;
+
+            // Airtable recibe ahora el ID purificado
             com.fasterxml.jackson.databind.JsonNode airtableRecord = airtableClient.obtenerRegistro(
                     tokenFormateado, tableName, inmuebleId);
-
-            log.info("JSON CRUDO DE AIRTABLE: {}", airtableRecord.toPrettyString());
 
             return mapperService.mapAirtableToDetalle(airtableRecord, estadoActual);
 
         } else {
-            log.info("Enrutando petición a Wasi para el ID: {}", inmuebleId);
-
+            // RUTA B: WASI (Inmueble Público)
+            log.info("Enrutando petición de detalle a Wasi para el ID limpio: {}", inmuebleId);
             WasiInmuebleDTO inmuebleRaw = wasiClient.obtenerInmueblePorId(inmuebleId);
 
             if (inmuebleRaw == null) {
