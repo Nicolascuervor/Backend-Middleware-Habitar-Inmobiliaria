@@ -2,7 +2,7 @@ package co.habitarinmobiliaria.middleware_service.service;
 
 import co.habitarinmobiliaria.middleware_service.dtos.InmuebleDetalleDTO;
 import co.habitarinmobiliaria.middleware_service.dtos.VitrinaInmuebleDTO;
-import co.habitarinmobiliaria.middleware_service.dtos.WasiInmuebleDTO;
+import co.habitarinmobiliaria.middleware_service.dtos.wasi.WasiInmuebleDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.apache.commons.text.StringEscapeUtils;

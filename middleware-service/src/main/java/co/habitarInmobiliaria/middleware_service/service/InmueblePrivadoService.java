@@ -1,7 +1,7 @@
 package co.habitarinmobiliaria.middleware_service.service;
 
 import co.habitarinmobiliaria.middleware_service.client.AirtableClient;
-import co.habitarinmobiliaria.middleware_service.dtos.AirtableCreateRequestDTO;
+import co.habitarinmobiliaria.middleware_service.dtos.airtable.AirtableCreateRequestDTO;
 import co.habitarinmobiliaria.middleware_service.dtos.CrearInmueblePrivadoDTO;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;

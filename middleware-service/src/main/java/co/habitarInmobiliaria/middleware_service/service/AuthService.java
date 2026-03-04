@@ -2,6 +2,8 @@ package co.habitarinmobiliaria.middleware_service.service;
 
 import co.habitarinmobiliaria.middleware_service.client.AirtableClient;
 import co.habitarinmobiliaria.middleware_service.dtos.*;
+import co.habitarinmobiliaria.middleware_service.dtos.airtable.AirtableFieldsDTO;
+import co.habitarinmobiliaria.middleware_service.dtos.airtable.AirtableResponseDTO;
 import co.habitarinmobiliaria.middleware_service.exception.RecursoNoEncontradoException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

@@ -50,16 +50,22 @@ public class VitrinaController {
     }
 
     @PatchMapping("/{usuarioToken}/asignar")
-    @Operation(summary = "Asignar inmueble automáticamente", description = "Recibe una URL de Wasi, busca el primer espacio vacío (listing_1...5) en HubSpot y lo guarda. Falla si ya existe o está lleno.")
+    @Operation(summary = "Asignar inmueble automáticamente", description = "Recibe una URL y un tipo de inmueble, busca el primer espacio vacío correspondiente en HubSpot y lo guarda.")
     public ResponseEntity<String> asignarInmueble(
             @PathVariable String usuarioToken,
             @RequestBody AsignarInmuebleDTO dto) {
 
         try {
-            orquestadorService.asignarInmuebleAutomaticamente(usuarioToken, dto.getUrl());
-            return ResponseEntity.ok("Inmueble asignado correctamente a la vitrina.");
+            // Validar que el tipo de inmueble venga en la petición
+            if (dto.getTipoInmueble() == null || dto.getTipoInmueble().trim().isEmpty()) {
+                return ResponseEntity.badRequest().body("El campo 'tipo_inmueble' es obligatorio (VENTA o ALQUILER).");
+            }
+
+            // Pasamos ambos datos al servicio
+            orquestadorService.asignarInmuebleAutomaticamente(usuarioToken, dto.getUrl(), dto.getTipoInmueble());
+            return ResponseEntity.ok("Inmueble asignado correctamente a la vitrina de " + dto.getTipoInmueble());
+
         } catch (IllegalStateException | IllegalArgumentException e) {
-            /* Error de lógica: vitrina llena o duplicado */
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }

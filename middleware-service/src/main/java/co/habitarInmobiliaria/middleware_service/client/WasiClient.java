@@ -1,7 +1,7 @@
 package co.habitarinmobiliaria.middleware_service.client;
 
 import co.habitarinmobiliaria.middleware_service.config.WasiFeignConfig;
-import co.habitarinmobiliaria.middleware_service.dtos.WasiInmuebleDTO;
+import co.habitarinmobiliaria.middleware_service.dtos.wasi.WasiInmuebleDTO;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;

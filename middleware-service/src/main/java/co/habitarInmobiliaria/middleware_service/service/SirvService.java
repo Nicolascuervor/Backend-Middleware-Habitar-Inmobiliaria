@@ -4,8 +4,8 @@ import co.habitarinmobiliaria.middleware_service.client.SirvClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import co.habitarinmobiliaria.middleware_service.dtos.SirvTokenRequestDTO;
-import co.habitarinmobiliaria.middleware_service.dtos.SirvTokenResponseDTO;
+import co.habitarinmobiliaria.middleware_service.dtos.sirv.SirvTokenRequestDTO;
+import co.habitarinmobiliaria.middleware_service.dtos.sirv.SirvTokenResponseDTO;
 import org.springframework.beans.factory.annotation.Value;
 
 import org.springframework.web.multipart.MultipartFile;

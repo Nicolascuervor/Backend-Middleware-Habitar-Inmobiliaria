@@ -1,15 +1,17 @@
 package co.habitarinmobiliaria.middleware_service.service;
 
 import co.habitarinmobiliaria.middleware_service.client.HubSpotClient;
-import co.habitarinmobiliaria.middleware_service.dtos.ClienteAsesorDTO;
-import co.habitarinmobiliaria.middleware_service.dtos.ClientesPaginadosDTO;
-import co.habitarinmobiliaria.middleware_service.dtos.HubSpotSearchRequestDTO;
-import co.habitarinmobiliaria.middleware_service.dtos.HubSpotSearchResponseDTO;
+import co.habitarinmobiliaria.middleware_service.dtos.*;
+import co.habitarinmobiliaria.middleware_service.dtos.hubspot.HubSpotContactDTO;
+import co.habitarinmobiliaria.middleware_service.dtos.hubspot.HubSpotSearchRequestDTO;
+import co.habitarinmobiliaria.middleware_service.dtos.hubspot.HubSpotSearchResponseDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -41,8 +43,7 @@ public class AsesorService {
 
         /* Armar petición con paginación */
         HubSpotSearchRequestDTO peticionBusqueda = HubSpotSearchRequestDTO.builder()
-                .filterGroups(
-                        List.of(HubSpotSearchRequestDTO.FilterGroup.builder().filters(List.of(filtroAsesor)).build()))
+                .filterGroups(List.of(HubSpotSearchRequestDTO.FilterGroup.builder().filters(List.of(filtroAsesor)).build()))
                 .properties(propiedadesSolicitadas)
                 .limit(limit)
                 .after(afterToken)
@@ -60,43 +61,13 @@ public class AsesorService {
                     .build();
         }
 
-        /* Mapear contactos a DTOs */
-        List<ClienteAsesorDTO> listaClientes = respuestaHubSpot.getResults().stream().map(contacto -> {
-            co.habitarinmobiliaria.middleware_service.dtos.HubSpotContactDTO.PropertiesDTO props = contacto
-                    .getProperties();
-
-            String nombre = props.getFirstname();
-            String apellido = props.getLastname();
-            String nombreCompleto = (nombre != null ? nombre : "") + " " + (apellido != null ? apellido : "");
-
-            /* Recolectar listings fijos */
-            java.util.Map<String, String> listingsMap = new java.util.HashMap<>();
-            if (props.getListing1() != null && !props.getListing1().isEmpty())
-                listingsMap.put("listing_1", props.getListing1());
-            if (props.getListing2() != null && !props.getListing2().isEmpty())
-                listingsMap.put("listing_2", props.getListing2());
-            if (props.getListing3() != null && !props.getListing3().isEmpty())
-                listingsMap.put("listing_3", props.getListing3());
-            if (props.getListing4() != null && !props.getListing4().isEmpty())
-                listingsMap.put("listing_4", props.getListing4());
-            if (props.getListing5() != null && !props.getListing5().isEmpty())
-                listingsMap.put("listing_5", props.getListing5());
-
-            /* Agregar listings dinámicos */
-            if (props.getPropiedadesDinamicas() != null) {
-                props.getPropiedadesDinamicas().forEach((key, value) -> {
-                    if (key.startsWith("listing_") && value != null && !value.isEmpty()) {
-                        listingsMap.put(key, value);
-                    }
-                });
-            }
-
-            return ClienteAsesorDTO.builder()
-                    .idContacto(contacto.getId())
-                    .nombreCompleto(nombreCompleto.trim())
-                    .listings(listingsMap)
-                    .build();
-        }).collect(java.util.stream.Collectors.toList());
+        /* * REFACTORIZACIÓN APLICADA AQUÍ:
+         * 1. Reducción de Complejidad Cognitiva delegando la lógica a un método mediante Method Reference (this::mapearContactoACliente)
+         * 2. Corrección de Regla SonarQube usando .toList() en lugar de .collect(Collectors.toList())
+         */
+        List<ClienteAsesorDTO> listaClientes = respuestaHubSpot.getResults().stream()
+                .map(this::mapearContactoACliente)
+                .toList();
 
         /* Extraer token de siguiente página */
         String siguienteToken = null;
@@ -111,4 +82,32 @@ public class AsesorService {
                 .totalClientes(respuestaHubSpot.getTotal())
                 .build();
     }
+
+    /**
+     * Extrae y mapea los datos crudos de HubSpot hacia nuestro DTO de dominio.
+     * Centraliza la lógica y mejora la legibilidad.
+     */
+    private ClienteAsesorDTO mapearContactoACliente(HubSpotContactDTO contacto) {
+        HubSpotContactDTO.PropertiesDTO props = contacto.getProperties();
+
+        String nombre = props.getFirstname() != null ? props.getFirstname() : "";
+        String apellido = props.getLastname() != null ? props.getLastname() : "";
+
+        Map<String, String> listingsMap = new HashMap<>();
+        if (props.getPropiedadesDinamicas() != null) {
+            props.getPropiedadesDinamicas().forEach((key, value) -> {
+                if (key != null && key.startsWith("listing_") && value != null && !value.trim().isEmpty()) {
+                    listingsMap.put(key, value);
+                }
+            });
+        }
+
+        return ClienteAsesorDTO.builder()
+                .idContacto(contacto.getId())
+                .nombreCompleto((nombre + " " + apellido).trim())
+                .listings(listingsMap)
+                .build();
+    }
+
+
 }
