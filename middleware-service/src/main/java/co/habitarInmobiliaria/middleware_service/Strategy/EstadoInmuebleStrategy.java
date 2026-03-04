@@ -1,9 +1,7 @@
-package co.habitarinmobiliaria.middleware_service.Strategy;
+package co.habitarinmobiliaria.middleware_service.strategy;
 
 public interface EstadoInmuebleStrategy {
     String getSufijo();
-
-    String getNombreEstado();
 
     /* Retorna true si esta estrategia aplica para la acción dada */
     boolean aplicaPara(String accion);

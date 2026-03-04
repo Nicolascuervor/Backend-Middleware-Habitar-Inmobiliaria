@@ -12,10 +12,9 @@ public class AirtableFeignConfig {
 
     @Bean
     public RequestInterceptor airtableRequestInterceptor() {
-        return requestTemplate -> {
-            /* Bearer Token para Airtable */
-            requestTemplate.header("Authorization", "Bearer " + airtableToken);
-        };
+        return requestTemplate ->
+                /* Bearer Token para Airtable */
+                requestTemplate.header("Authorization", "Bearer " + airtableToken);
     }
 
     /* Nivel de logging Feign */

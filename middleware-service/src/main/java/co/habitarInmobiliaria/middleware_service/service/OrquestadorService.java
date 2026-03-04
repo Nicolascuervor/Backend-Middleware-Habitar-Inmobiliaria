@@ -1,6 +1,6 @@
 package co.habitarinmobiliaria.middleware_service.service;
 
-import co.habitarinmobiliaria.middleware_service.Strategy.EstadoInmuebleStrategy;
+import co.habitarinmobiliaria.middleware_service.strategy.EstadoInmuebleStrategy;
 import co.habitarinmobiliaria.middleware_service.client.AirtableClient;
 import co.habitarinmobiliaria.middleware_service.client.HubSpotClient;
 import co.habitarinmobiliaria.middleware_service.client.WasiClient;

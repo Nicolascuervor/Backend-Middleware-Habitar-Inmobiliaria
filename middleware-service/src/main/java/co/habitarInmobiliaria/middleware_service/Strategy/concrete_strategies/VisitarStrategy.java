@@ -1,6 +1,6 @@
-package co.habitarinmobiliaria.middleware_service.Strategy.concrete_strategies;
+package co.habitarinmobiliaria.middleware_service.strategy.concrete_strategies;
 
-import co.habitarinmobiliaria.middleware_service.Strategy.EstadoInmuebleStrategy;
+import co.habitarinmobiliaria.middleware_service.strategy.EstadoInmuebleStrategy;
 import org.springframework.stereotype.Component;
 
 @Component

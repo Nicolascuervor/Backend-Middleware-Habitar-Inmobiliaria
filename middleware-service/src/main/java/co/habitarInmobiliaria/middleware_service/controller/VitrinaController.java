@@ -2,17 +2,13 @@ package co.habitarinmobiliaria.middleware_service.controller;
 
 import co.habitarinmobiliaria.middleware_service.dtos.AsignarInmuebleDTO;
 import co.habitarinmobiliaria.middleware_service.dtos.InmuebleDetalleDTO;
-import co.habitarinmobiliaria.middleware_service.dtos.VitrinaInmuebleDTO;
 import co.habitarinmobiliaria.middleware_service.dtos.VitrinaResponseDTO;
-import co.habitarinmobiliaria.middleware_service.exception.RecursoNoEncontradoException;
 import co.habitarinmobiliaria.middleware_service.service.OrquestadorService;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/vitrina")

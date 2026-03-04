@@ -1,6 +1,5 @@
 package co.habitarinmobiliaria.middleware_service.controller;
 
-import co.habitarinmobiliaria.middleware_service.dtos.ClienteAsesorDTO;
 import co.habitarinmobiliaria.middleware_service.dtos.ClientesPaginadosDTO;
 import co.habitarinmobiliaria.middleware_service.service.AsesorService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -8,8 +7,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/asesores")
