@@ -52,14 +52,17 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
 
         /* Orígenes permitidos */
-        configuration.setAllowedOrigins(List.of(
+        configuration.setAllowedOriginPatterns(List.of(
                 "http://localhost:8000",
                 "http://localhost:3000",
                 "http://localhost:5173",
-                "http://localhost:4200"));
+                "http://localhost:4200",
+                "https://*.loca.lt",
+                "https://*.lhr.life",
+                "https://*.trycloudflare.com"));
 
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "bypass-tunnel-reminder"));
         configuration.setAllowCredentials(false);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

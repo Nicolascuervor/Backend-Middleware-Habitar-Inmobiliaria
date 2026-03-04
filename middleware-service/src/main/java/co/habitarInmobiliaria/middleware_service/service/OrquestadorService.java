@@ -5,7 +5,6 @@ import co.habitarinmobiliaria.middleware_service.client.AirtableClient;
 import co.habitarinmobiliaria.middleware_service.client.HubSpotClient;
 import co.habitarinmobiliaria.middleware_service.client.WasiClient;
 import co.habitarinmobiliaria.middleware_service.dtos.*;
-import co.habitarinmobiliaria.middleware_service.exception.ErrorExternoException;
 import co.habitarinmobiliaria.middleware_service.exception.RecursoNoEncontradoException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

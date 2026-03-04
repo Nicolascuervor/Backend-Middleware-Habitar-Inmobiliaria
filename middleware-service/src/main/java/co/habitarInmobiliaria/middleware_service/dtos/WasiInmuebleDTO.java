@@ -2,6 +2,7 @@ package co.habitarinmobiliaria.middleware_service.dtos;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.Data;
 
@@ -29,6 +30,12 @@ public class WasiInmuebleDTO {
 
     @JsonAlias("for_rent")
     private String forRent;
+
+    @JsonProperty("sale_price")
+    private String salePrice;
+
+    @JsonProperty("rent_price")
+    private String rentPrice;
 
     /* Ubicación */
     @JsonAlias("country_label")

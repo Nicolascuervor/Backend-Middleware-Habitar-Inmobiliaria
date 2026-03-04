@@ -130,16 +130,34 @@ public class InmuebleMapperService {
 
     public InmuebleDetalleDTO mapToDetalle(WasiInmuebleDTO source, String estadoInmueble) {
 
-        /* Lógica de precios */
-        String precioMostrar = "true".equals(source.getForRent())
-                ? source.getRentPriceLabel()
-                : source.getSalePriceLabel();
+        /* 🚀 Lógica de precios y tipo de negocio (Soporte Dual y Defensivo) */
+        boolean esVenta = "true".equalsIgnoreCase(source.getForSale());
+        boolean esAlquiler = "true".equalsIgnoreCase(source.getForRent());
+
+        String tipoNegocioCalculado = "No especificado";
+        String precioMostrar = "Consultar precio";
+
+        if (esVenta && esAlquiler) {
+            tipoNegocioCalculado = "Venta y Alquiler";
+            String pVenta = source.getSalePriceLabel() != null ? source.getSalePriceLabel() : "N/A";
+            String pAlquiler = source.getRentPriceLabel() != null ? source.getRentPriceLabel() : "N/A";
+            // Concatenamos ambos precios para que el frontend los reciba listos para mostrar
+            precioMostrar = "Venta: " + pVenta + " | Alquiler: " + pAlquiler;
+
+        } else if (esVenta) {
+            tipoNegocioCalculado = "Venta";
+            precioMostrar = source.getSalePriceLabel() != null ? source.getSalePriceLabel() : "Consultar";
+
+        } else if (esAlquiler) {
+            tipoNegocioCalculado = "Alquiler";
+            precioMostrar = source.getRentPriceLabel() != null ? source.getRentPriceLabel() : "Consultar";
+        }
 
         /* Lógica de ubicación */
         String ubicacionCompleta = String.format("%s, %s, %s",
-                source.getCountryLabel() != null ? source.getCountryLabel() : "",
-                source.getRegionLabel() != null ? source.getRegionLabel() : "",
-                source.getCityLabel() != null ? source.getCityLabel() : "").replaceAll("^, |, $|(?<=, )(?=,)", "")
+                        source.getCountryLabel() != null ? source.getCountryLabel() : "",
+                        source.getRegionLabel() != null ? source.getRegionLabel() : "",
+                        source.getCityLabel() != null ? source.getCityLabel() : "").replaceAll("^, |, $|(?<=, )(?=,)", "")
                 .trim();
 
         /* Extraer características */
@@ -196,24 +214,15 @@ public class InmuebleMapperService {
             }
         }
 
-        /* Obtener nombre del encargado */
-        String nombreEncargado = "";
-        if (source.getUser_data() != null && source.getUser_data().isObject()) {
-            String fname = source.getUser_data().has("first_name") ? source.getUser_data().get("first_name").asText()
-                    : "";
-            String lname = source.getUser_data().has("last_name") ? source.getUser_data().get("last_name").asText()
-                    : "";
-            nombreEncargado = (fname + " " + lname).trim();
-        }
-
         /* Construir DTO final */
         return InmuebleDetalleDTO.builder()
                 .titulo(source.getTitle())
-                .tipoNegocio("true".equals(source.getForRent()) ? "Alquiler" : "Venta")
+                // Inyectamos las variables locales que procesamos arriba
+                .tipoNegocio(tipoNegocioCalculado)
                 .precioFormateado(precioMostrar)
+
                 .valorAdministracion(source.getMaintenanceFee() != null ? "$" + source.getMaintenanceFee() : "N/A")
                 .estadoActualCliente(estadoInmueble)
-                .encargado(nombreEncargado.isEmpty() ? "No asignado" : nombreEncargado)
 
                 .ubicacion(ubicacionCompleta)
                 .zona(source.getZoneLabel() != null ? source.getZoneLabel() : "No especificada")
@@ -230,8 +239,6 @@ public class InmuebleMapperService {
                 .piso(source.getFloor() != null ? source.getFloor() : "N/A")
                 .estadoFisico(source.getPropertyConditionLabel() != null ? source.getPropertyConditionLabel() : "N/A")
                 .anioConstruccion(source.getBuildingDate() != null ? source.getBuildingDate() : "N/A")
-
-                .encargado(nombreEncargado.trim().isEmpty() ? "No asignado" : nombreEncargado.trim())
 
                 .caracteristicasInternas(internas)
                 .caracteristicasExternas(externas)
@@ -304,7 +311,7 @@ public class InmuebleMapperService {
                 .anioConstruccion(fields.has("Año Construcción") ? fields.get("Año Construcción").asText() : "N/A")
 
                 /* Dueño asumido por contexto de Airtable */
-                .encargado(fields.has("ID Dueño") ? "Asesor Privado" : "No asignado")
+                //.encargado(fields.has("ID Dueño") ? "Asesor Privado" : "No asignado")
 
                 .caracteristicasInternas(internas)
                 .caracteristicasExternas(externas)

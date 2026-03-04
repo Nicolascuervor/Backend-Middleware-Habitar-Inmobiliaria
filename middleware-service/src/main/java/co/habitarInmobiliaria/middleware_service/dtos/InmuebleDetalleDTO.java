@@ -14,6 +14,7 @@ public class InmuebleDetalleDTO {
     private String valorAdministracion;
     private String estadoActualCliente;
 
+
     /* Ubicación */
     private String ubicacion;
     private String zona;
@@ -32,8 +33,8 @@ public class InmuebleDetalleDTO {
     private String estadoFisico;
     private String anioConstruccion;
 
-    /* Encargado */
-    private String encargado;
+    /* Encargado
+    private String encargado; */
 
     /* Características y galería */
     private List<String> caracteristicasInternas;
