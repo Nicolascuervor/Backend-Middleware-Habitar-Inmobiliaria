@@ -1,6 +1,7 @@
 package co.habitarinmobiliaria.middleware_service.service;
 
 import co.habitarinmobiliaria.middleware_service.client.SirvClient;
+import co.habitarinmobiliaria.middleware_service.exception.ErrorExternoException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -12,6 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.UUID;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -41,7 +43,8 @@ public class SirvService {
             SirvTokenResponseDTO authResponse = sirvClient.obtenerToken(authRequest);
             String tokenHeader = "Bearer " + authResponse.getToken();
 
-            // 2. Generar un nombre único para evitar sobreescribir imágenes (Ej: /inmuebles/123e4567-e89b...jpg)
+            // 2. Generar un nombre único para evitar sobreescribir imágenes (Ej:
+            // /inmuebles/123e4567-e89b...jpg)
             String extension = obtenerExtension(archivo.getOriginalFilename());
             String nombreUnico = UUID.randomUUID().toString() + extension;
             String rutaDestino = "/inmuebles/" + nombreUnico; // Sirv creará la carpeta automáticamente
@@ -51,8 +54,7 @@ public class SirvService {
                     tokenHeader,
                     archivo.getContentType(), // Ej: "image/jpeg"
                     rutaDestino,
-                    archivo.getBytes()
-            );
+                    archivo.getBytes());
 
             // 4. Construir y devolver la URL pública
             String urlPublica = dominioSirv + rutaDestino;
@@ -62,10 +64,10 @@ public class SirvService {
 
         } catch (IOException e) {
             log.error("Error al leer los bytes del archivo", e);
-            throw new RuntimeException("Error al procesar el archivo de imagen");
+            throw new ErrorExternoException("Error al procesar el archivo de imagen");
         } catch (Exception e) {
             log.error("Error en la comunicación con Sirv", e);
-            throw new RuntimeException("Error al subir la imagen a la nube");
+            throw new ErrorExternoException("Error al subir la imagen a la nube");
         }
     }
 

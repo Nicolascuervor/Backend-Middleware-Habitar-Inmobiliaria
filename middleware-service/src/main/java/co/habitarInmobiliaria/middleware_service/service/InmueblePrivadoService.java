@@ -3,6 +3,7 @@ package co.habitarinmobiliaria.middleware_service.service;
 import co.habitarinmobiliaria.middleware_service.client.AirtableClient;
 import co.habitarinmobiliaria.middleware_service.dtos.airtable.AirtableCreateRequestDTO;
 import co.habitarinmobiliaria.middleware_service.dtos.CrearInmueblePrivadoDTO;
+import co.habitarinmobiliaria.middleware_service.exception.ErrorExternoException;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,13 +20,12 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class InmueblePrivadoService {
 
+    private static final String FIELD_RECORDS = "records";
+
     private final AirtableClient airtableClient;
 
     @Value("${airtable.token}")
     private String airtableToken;
-
-    @Value("${airtable.base.id}")
-    private String baseId;
 
     @Value("${airtable.table.inmuebles}")
     private String tableName;
@@ -36,68 +36,41 @@ public class InmueblePrivadoService {
         /* Mapear datos al formato de Airtable */
         Map<String, Object> fields = new HashMap<>();
 
+        /* Campos obligatorios */
         fields.put("Título", dto.getTitulo());
         fields.put("Tipo Negocio", dto.getTipoNegocio());
         fields.put("Precio", dto.getPrecio());
-
-        /* Relaciones */
         fields.put("ID Dueño", dto.getIdDueno());
         fields.put("ID Contacto", dto.getIdContacto());
-
-        if (dto.getValorAdministracion() != null)
-            fields.put("Valor Administración", dto.getValorAdministracion());
-
         fields.put("Ubicación", dto.getUbicacion());
-        if (dto.getZona() != null)
-            fields.put("Zona", dto.getZona());
-        if (dto.getDireccion() != null)
-            fields.put("Dirección", dto.getDireccion());
-        if (dto.getEstrato() != null)
-            fields.put("Estrato", dto.getEstrato());
-
         fields.put("Tipo Inmueble", dto.getTipoInmueble());
-        if (dto.getAreaConstruida() != null)
-            fields.put("Área Construida", dto.getAreaConstruida());
-        if (dto.getAreaTerreno() != null)
-            fields.put("Área Terreno", dto.getAreaTerreno());
-        if (dto.getAreaPrivada() != null)
-            fields.put("Área Privada", dto.getAreaPrivada());
-
         fields.put("Habitaciones", dto.getHabitaciones());
         fields.put("Baños", dto.getBanos());
-        if (dto.getEstacionamiento() != null)
-            fields.put("Estacionamiento", dto.getEstacionamiento());
-        if (dto.getPiso() != null)
-            fields.put("Piso", dto.getPiso());
-        if (dto.getEstadoFisico() != null)
-            fields.put("Estado Físico", dto.getEstadoFisico());
-        if (dto.getAnioConstruccion() != null)
-            fields.put("Año Construcción", dto.getAnioConstruccion());
-
         fields.put("Descripción", dto.getDescripcion());
 
-        /* Listas de selección múltiple */
-        if (dto.getCaracteristicasInternas() != null)
-            fields.put("Características Internas", dto.getCaracteristicasInternas());
-        if (dto.getCaracteristicasExternas() != null)
-            fields.put("Características Externas", dto.getCaracteristicasExternas());
+        /* Campos opcionales */
+        agregarCampoOpcional(fields, "Valor Administración", dto.getValorAdministracion());
+        agregarCampoOpcional(fields, "Zona", dto.getZona());
+        agregarCampoOpcional(fields, "Dirección", dto.getDireccion());
+        agregarCampoOpcional(fields, "Estrato", dto.getEstrato());
+        agregarCampoOpcional(fields, "Área Construida", dto.getAreaConstruida());
+        agregarCampoOpcional(fields, "Área Terreno", dto.getAreaTerreno());
+        agregarCampoOpcional(fields, "Área Privada", dto.getAreaPrivada());
+        agregarCampoOpcional(fields, "Estacionamiento", dto.getEstacionamiento());
+        agregarCampoOpcional(fields, "Piso", dto.getPiso());
+        agregarCampoOpcional(fields, "Estado Físico", dto.getEstadoFisico());
+        agregarCampoOpcional(fields, "Año Construcción", dto.getAnioConstruccion());
+        agregarCampoOpcional(fields, "Características Internas", dto.getCaracteristicasInternas());
+        agregarCampoOpcional(fields, "Características Externas", dto.getCaracteristicasExternas());
 
         /* Imágenes en formato Airtable */
-        if (dto.getImagenesUrls() != null && !dto.getImagenesUrls().isEmpty()) {
-            List<Map<String, String>> imagenesAirtable = new ArrayList<>();
-            for (String url : dto.getImagenesUrls()) {
-                Map<String, String> imgObj = new HashMap<>();
-                imgObj.put("url", url);
-                imagenesAirtable.add(imgObj);
-            }
-            fields.put("Imágenes", imagenesAirtable);
-        }
+        agregarImagenes(fields, dto.getImagenesUrls());
 
         /* Construir payload para Airtable */
-        AirtableCreateRequestDTO.Record record = AirtableCreateRequestDTO.Record.builder().fields(fields).build();
+        AirtableCreateRequestDTO.Record registro = AirtableCreateRequestDTO.Record.builder().fields(fields).build();
 
         AirtableCreateRequestDTO request = AirtableCreateRequestDTO.builder()
-                .records(List.of(record))
+                .records(List.of(registro))
                 .typecast(true)
                 .build();
 
@@ -106,12 +79,31 @@ public class InmueblePrivadoService {
         JsonNode response = airtableClient.crearRegistro(tokenFormateado, tableName, request);
 
         /* Extraer y retornar el ID generado */
-        if (response != null && response.has("records") && response.get("records").isArray()) {
-            String recordId = response.get("records").get(0).get("id").asText();
+        if (response != null && response.has(FIELD_RECORDS) && response.get(FIELD_RECORDS).isArray()) {
+            String recordId = response.get(FIELD_RECORDS).get(0).get("id").asText();
             log.info("Inmueble guardado exitosamente en Airtable con ID: {}", recordId);
             return recordId;
         }
 
-        throw new RuntimeException("Error al guardar en Airtable: No se recibió un ID válido");
+        throw new ErrorExternoException("Error al guardar en Airtable: No se recibió un ID válido");
+    }
+
+    private void agregarCampoOpcional(Map<String, Object> fields, String key, Object value) {
+        if (value != null) {
+            fields.put(key, value);
+        }
+    }
+
+    private void agregarImagenes(Map<String, Object> fields, List<String> imagenesUrls) {
+        if (imagenesUrls == null || imagenesUrls.isEmpty()) {
+            return;
+        }
+        List<Map<String, String>> imagenesAirtable = new ArrayList<>();
+        for (String url : imagenesUrls) {
+            Map<String, String> imgObj = new HashMap<>();
+            imgObj.put("url", url);
+            imagenesAirtable.add(imgObj);
+        }
+        fields.put("Imágenes", imagenesAirtable);
     }
 }

@@ -41,14 +41,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             correoAsesor = jwtService.extraerCorreo(jwt);
 
             /* Autenticar si aún no está en el contexto */
-            if (correoAsesor != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-
-                if (jwtService.esTokenValido(jwt, correoAsesor)) {
-                    UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                            correoAsesor, null, new ArrayList<>());
-                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                    SecurityContextHolder.getContext().setAuthentication(authToken);
-                }
+            if (correoAsesor != null && SecurityContextHolder.getContext().getAuthentication() == null
+                    && jwtService.esTokenValido(jwt, correoAsesor)) {
+                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                        correoAsesor, null, new ArrayList<>());
+                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                SecurityContextHolder.getContext().setAuthentication(authToken);
             }
         } catch (Exception e) {
             /* Token inválido o expirado */

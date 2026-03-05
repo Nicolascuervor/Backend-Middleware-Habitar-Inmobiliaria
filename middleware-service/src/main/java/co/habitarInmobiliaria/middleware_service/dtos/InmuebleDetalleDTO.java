@@ -33,9 +33,6 @@ public class InmuebleDetalleDTO {
     private String estadoFisico;
     private String anioConstruccion;
 
-    /* Encargado
-    private String encargado; */
-
     /* Características y galería */
     private List<String> caracteristicasInternas;
     private List<String> caracteristicasExternas;

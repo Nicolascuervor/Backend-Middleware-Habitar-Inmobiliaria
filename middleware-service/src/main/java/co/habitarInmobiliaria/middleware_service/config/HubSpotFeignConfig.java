@@ -11,8 +11,7 @@ public class HubSpotFeignConfig {
 
     @Bean
     public RequestInterceptor requestInterceptor() {
-        return requestTemplate -> {
-            requestTemplate.header("Authorization", "Bearer " + hubSpotToken);
-        };
+        return requestTemplate ->
+                requestTemplate.header("Authorization", "Bearer " + hubSpotToken);
     }
 }
