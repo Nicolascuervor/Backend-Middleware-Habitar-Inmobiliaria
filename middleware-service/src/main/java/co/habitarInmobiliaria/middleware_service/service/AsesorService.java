@@ -1,6 +1,7 @@
 package co.habitarinmobiliaria.middleware_service.service;
 
 import co.habitarinmobiliaria.middleware_service.client.HubSpotClient;
+import co.habitarinmobiliaria.middleware_service.constans.HubSpotConstants;
 import co.habitarinmobiliaria.middleware_service.dtos.*;
 import co.habitarinmobiliaria.middleware_service.dtos.hubspot.HubSpotContactDTO;
 import co.habitarinmobiliaria.middleware_service.dtos.hubspot.HubSpotSearchRequestDTO;
@@ -28,10 +29,13 @@ public class AsesorService {
         log.info("Buscando clientes paginados para el Asesor OwnerId: {} | Limit: {}", ownerId, limit);
 
         /* Generar propiedades solicitadas */
-        List<String> propiedadesSolicitadas = new java.util.ArrayList<>(List.of("firstname", "lastname"));
-        int maxListings = 10;
+        List<String> propiedadesSolicitadas = new java.util.ArrayList<>(List.of(
+                HubSpotConstants.FIRSTNAME, HubSpotConstants.LASTNAME));
+        int maxListings = 30;
         for (int i = 1; i <= maxListings; i++) {
-            propiedadesSolicitadas.add("listing_" + i);
+            propiedadesSolicitadas.add(HubSpotConstants.LISTING_PREFIX + i);
+            propiedadesSolicitadas.add(HubSpotConstants.LISTING_PREFIX + i + "_a");
+            propiedadesSolicitadas.add(HubSpotConstants.LISTING_PREFIX + i + "_v");
         }
 
         /* Construir filtro por asesor */
@@ -43,7 +47,8 @@ public class AsesorService {
 
         /* Armar petición con paginación */
         HubSpotSearchRequestDTO peticionBusqueda = HubSpotSearchRequestDTO.builder()
-                .filterGroups(List.of(HubSpotSearchRequestDTO.FilterGroup.builder().filters(List.of(filtroAsesor)).build()))
+                .filterGroups(
+                        List.of(HubSpotSearchRequestDTO.FilterGroup.builder().filters(List.of(filtroAsesor)).build()))
                 .properties(propiedadesSolicitadas)
                 .limit(limit)
                 .after(afterToken)
@@ -61,10 +66,6 @@ public class AsesorService {
                     .build();
         }
 
-        /* * REFACTORIZACIÓN APLICADA AQUÍ:
-         * 1. Reducción de Complejidad Cognitiva delegando la lógica a un método mediante Method Reference (this::mapearContactoACliente)
-         * 2. Corrección de Regla SonarQube usando .toList() en lugar de .collect(Collectors.toList())
-         */
         List<ClienteAsesorDTO> listaClientes = respuestaHubSpot.getResults().stream()
                 .map(this::mapearContactoACliente)
                 .toList();
@@ -108,6 +109,5 @@ public class AsesorService {
                 .listings(listingsMap)
                 .build();
     }
-
 
 }

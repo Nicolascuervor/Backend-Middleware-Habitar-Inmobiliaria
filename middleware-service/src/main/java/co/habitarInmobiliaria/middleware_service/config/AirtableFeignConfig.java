@@ -20,6 +20,6 @@ public class AirtableFeignConfig {
     /* Nivel de logging Feign */
     @Bean
     Logger.Level feignLoggerLevel() {
-        return Logger.Level.FULL;
+        return Logger.Level.BASIC; /* Solo método, URL y status */
     }
 }

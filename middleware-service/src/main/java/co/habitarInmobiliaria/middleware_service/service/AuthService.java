@@ -19,21 +19,41 @@ public class AuthService {
     private final JwtService jwtService;
     private final PasswordEncoder passwordEncoder;
 
-    /* ID de la tabla de asesores en Airtable */
-    private static final String TABLA_ASESORES = "tblLV7ZSUuV4Gu7Hv";
+    /* ID de la tabla de asesores*/
+    @org.springframework.beans.factory.annotation.Value("${airtable.table.asesores}")
+    private String tablaAsesores;
+
+    /* Patrón de correo válido */
+    private static final java.util.regex.Pattern PATRON_CORREO =
+            java.util.regex.Pattern.compile("^[\\w.+-]+@[\\w.-]+\\.[a-zA-Z]{2,}$");
 
     public AuthResponseDTO login(LoginRequestDTO request) {
-        log.info("Intento de login para: {}", request.correo());
+        /* Sanitizar input para logs */
+        String correoSeguro = request.correo() != null
+                ? request.correo().replaceAll("[\\r\\n\\t]", "_")
+                : "";
+        log.info("Intento de login para: {}", correoSeguro);
+
+        /* Validar formato de correo */
+        if (request.correo() == null || !PATRON_CORREO.matcher(request.correo()).matches()) {
+            log.warn("Formato de correo inválido: {}", correoSeguro);
+            throw new RecursoNoEncontradoException("Credenciales inválidas");
+        }
+
+        /* Escapar caracteres especiales para fórmula de Airtable */
+        String correoEscapado = request.correo()
+                .replace("\\", "\\\\")
+                .replace("'", "\\'");
 
         /* Buscar asesor por correo en Airtable */
-        String formula = "{Correo} = '" + request.correo() + "'";
+        String formula = "{Correo} = '" + correoEscapado + "'";
 
         /* Consultar Airtable */
-        AirtableResponseDTO response = airtableClient.buscarRegistrosPorFormula(TABLA_ASESORES, formula);
+        AirtableResponseDTO response = airtableClient.buscarRegistrosPorFormula(tablaAsesores, formula);
 
         /* Verificar si existe el usuario */
         if (response.records() == null || response.records().isEmpty()) {
-            log.warn("Usuario no encontrado en Airtable: {}", request.correo());
+            log.warn("Usuario no encontrado en Airtable: {}", correoSeguro);
             throw new RecursoNoEncontradoException("Credenciales inválidas");
         }
 
@@ -41,7 +61,7 @@ public class AuthService {
 
         /* Validar contraseña */
         if (!passwordEncoder.matches(request.password(), asesor.password())) {
-            log.warn("Contraseña incorrecta para: {}", request.correo());
+            log.warn("Contraseña incorrecta para: {}", correoSeguro);
             throw new RecursoNoEncontradoException("Credenciales inválidas");
         }
 

@@ -10,6 +10,7 @@ import co.habitarinmobiliaria.middleware_service.client.HubSpotClient;
 import co.habitarinmobiliaria.middleware_service.client.WasiClient;
 import co.habitarinmobiliaria.middleware_service.dtos.*;
 import co.habitarinmobiliaria.middleware_service.exception.RecursoNoEncontradoException;
+import co.habitarinmobiliaria.middleware_service.util.LogSanitizer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -87,8 +88,30 @@ public class OrquestadorService {
     @Value("${asesor.m.meet}")
     private String meetM;
 
+    /* Asesor A */
+    @Value("${asesor.a.id}")
+    private String idA;
+    @Value("${asesor.a.foto}")
+    private String fotoA;
+    @Value("${asesor.a.tel}")
+    private String telA;
+    @Value("${asesor.a.meet}")
+    private String meetA;
+
+    /* Asesor JS */
+    @Value("${asesor.js.id}")
+    private String idJS;
+    @Value("${asesor.js.foto}")
+    private String fotoJS;
+    @Value("${asesor.js.tel}")
+    private String telJS;
+    @Value("${asesor.js.meet}")
+    private String meetJS;
+
+
+
     public void procesarCambioEstado(String usuarioToken, String urlRecibida, String accion) {
-        log.info("Procesando cambio de estado: {} para URL: {}", accion, urlRecibida);
+        log.info("Procesando cambio de estado: {} para URL: {}", LogSanitizer.sanitizar(accion), LogSanitizer.sanitizar(urlRecibida));
 
         /* Buscar estrategia correcta */
         EstadoInmuebleStrategy estrategia = estrategias.stream()
@@ -103,7 +126,7 @@ public class OrquestadorService {
             throw new IllegalArgumentException("No se pudo extraer un ID válido de la URL proporcionada");
         }
 
-        /*Generar las propiedades a pedir a HubSpot */
+        /* Generar las propiedades a pedir a HubSpot */
 
         StringBuilder propiedadesSolicitadas = new StringBuilder(HubSpotConstants.FIRSTNAME);
         for (int i = 1; i <= MAX_VITRINA_SIZE; i++) {
@@ -140,7 +163,9 @@ public class OrquestadorService {
             }
         }
 
-        /* Si el bucle termina sin hacer 'return', el inmueble no estaba en la vitrina */
+        /*
+         * Si el bucle termina sin hacer 'return', el inmueble no estaba en la vitrina
+         */
         throw new RecursoNoEncontradoException("El inmueble no pertenece a la vitrina de este cliente");
     }
 
@@ -201,16 +226,12 @@ public class OrquestadorService {
                 .build();
     }
 
-
-
     private VitrinaInmuebleDTO consultarInmuebleIndividual(String url) {
         String inmuebleId = mapperService.extraerIdDeUrl(url);
         String estadoDelInmueble = mapperService.extraerEstadoDeUrl(url);
-
         if (inmuebleId == null) {
             return null;
         }
-
         try {
             /* Ruta Airtable o Wasi según el ID */
             if (inmuebleId.startsWith("rec")) {
@@ -231,8 +252,11 @@ public class OrquestadorService {
                 }
             }
         } catch (Exception e) {
-            /* Tolerancia a fallos: Si un inmueble falla, se retorna null para que el filtro lo descarte
-               sin romper la vitrina entera del adulto mayor. */
+            /*
+             * Tolerancia a fallos: Si un inmueble falla, se retorna null para que el filtro
+             * lo descarte
+             * sin romper la vitrina entera del adulto mayor.
+             */
             log.error("Error obteniendo inmueble {}: {}", inmuebleId, e.getMessage());
         }
 
@@ -244,7 +268,7 @@ public class OrquestadorService {
         String inmuebleId = mapperService.extraerIdDeUrl(parametroRecibido);
 
         if (inmuebleId == null) {
-            log.error("No se pudo extraer un ID válido del parámetro recibido: {}", parametroRecibido);
+            log.error("No se pudo extraer un ID válido del parámetro recibido: {}", LogSanitizer.sanitizar(parametroRecibido));
             throw new IllegalArgumentException("ID de inmueble no válido");
         }
 
@@ -306,45 +330,26 @@ public class OrquestadorService {
         log.info("Intento de asignar inmueble [{}] para usuario: {}", tipoInmueble, usuarioToken);
 
         String nuevoId = mapperService.extraerIdDeUrl(urlWasi);
-        if (nuevoId == null) throw new IllegalArgumentException("URL inválida.");
+        if (nuevoId == null)
+            throw new IllegalArgumentException("URL inválida.");
 
-        /* Determinar el sufijo interno de HubSpot basado en el tipo de negocio */
-        String sufijoTarget = "ALQUILER".equalsIgnoreCase(tipoInmueble) ? "_a" : "_v";
+        boolean esAlquiler = "ALQUILER".equalsIgnoreCase(tipoInmueble);
 
-        /* Generamos dinámicamente las propiedades a pedir, filtrando solo por el tipo solicitado */
-        StringBuilder propiedadesSolicitadas = new StringBuilder(HubSpotConstants.FIRSTNAME);
-        for (int i = 1; i <= MAX_VITRINA_SIZE; i++) {
-            propiedadesSolicitadas.append(",").append(HubSpotConstants.LISTING_PREFIX).append(i).append(sufijoTarget);
+        String propiedadesSolicitadas = construirPropiedadesPorTipo(esAlquiler);
+
+        HubSpotContactDTO contacto = hubSpotClient.obtenerContacto(usuarioToken, propiedadesSolicitadas);
+        if (contacto == null || contacto.getProperties() == null) {
+            throw new RecursoNoEncontradoException("Usuario no encontrado");
         }
-
-        HubSpotContactDTO contacto = hubSpotClient.obtenerContacto(usuarioToken, propiedadesSolicitadas.toString());
-        if (contacto == null || contacto.getProperties() == null) throw new RecursoNoEncontradoException("Usuario no encontrado");
 
         Map<String, String> propiedadesActuales = contacto.getProperties().getPropiedadesDinamicas();
-        String huecoLibre = null;
-
-        /* Buscar duplicados y el primer hueco libre en la categoría específica (_a o _v) */
-        for (int i = 1; i <= MAX_VITRINA_SIZE; i++) {
-            String key = HubSpotConstants.LISTING_PREFIX + i + sufijoTarget; // Ej: listing_1_a
-            String urlEnSlot = propiedadesActuales.get(key);
-
-            if (urlEnSlot != null && !urlEnSlot.trim().isEmpty()) {
-                /* Verificar duplicado */
-                String idExistente = mapperService.extraerIdDeUrl(urlEnSlot);
-                if (nuevoId.equals(idExistente)) {
-                    throw new IllegalStateException("El inmueble " + nuevoId + " ya está asignado en " + key);
-                }
-            } else if (huecoLibre == null) {
-                /* Guardar primer hueco vacío de esta categoría */
-                huecoLibre = key;
-            }
-        }
+        String huecoLibre = buscarHuecoLibre(propiedadesActuales, nuevoId, esAlquiler);
 
         if (huecoLibre == null) {
-            throw new IllegalStateException("La vitrina de " + tipoInmueble + " del cliente está llena (" + MAX_VITRINA_SIZE + ").");
+            throw new IllegalStateException(
+                    "La vitrina de " + tipoInmueble + " del cliente está llena (" + MAX_VITRINA_SIZE + ").");
         }
 
-        /* Actualizar en HubSpot */
         log.info("Asignando inmueble {} en el hueco disponible: {}", nuevoId, huecoLibre);
         Map<String, String> propiedadesAActualizar = new HashMap<>();
         propiedadesAActualizar.put(huecoLibre, urlWasi);
@@ -354,6 +359,88 @@ public class OrquestadorService {
         hubSpotClient.actualizarContacto(usuarioToken, requestBody);
     }
 
+    /* Construye el nombre interno del slot según tipo y posición */
+    private String construirKeyListingPorTipo(int indice, boolean esAlquiler) {
+        if (esAlquiler) {
+            return HubSpotConstants.LISTING_PREFIX + indice + "_a";
+        }
+        return (indice <= 5)
+                ? HubSpotConstants.LISTING_PREFIX + indice
+                : HubSpotConstants.LISTING_PREFIX + indice + "_v";
+    }
+
+    /* Genera la lista de propiedades a solicitar a HubSpot filtradas por tipo */
+    private String construirPropiedadesPorTipo(boolean esAlquiler) {
+        StringBuilder sb = new StringBuilder(HubSpotConstants.FIRSTNAME);
+        for (int i = 1; i <= MAX_VITRINA_SIZE; i++) {
+            sb.append(",").append(construirKeyListingPorTipo(i, esAlquiler));
+        }
+        return sb.toString();
+    }
+
+    /*
+     * Busca duplicados y retorna el primer hueco libre; lanza excepción si hay
+     * duplicado
+     */
+    private String buscarHuecoLibre(Map<String, String> propiedadesActuales, String nuevoId, boolean esAlquiler) {
+        String huecoLibre = null;
+        for (int i = 1; i <= MAX_VITRINA_SIZE; i++) {
+            String key = construirKeyListingPorTipo(i, esAlquiler);
+            String urlEnSlot = propiedadesActuales.get(key);
+
+            if (urlEnSlot != null && !urlEnSlot.trim().isEmpty()) {
+                String idExistente = mapperService.extraerIdDeUrl(urlEnSlot);
+                if (nuevoId.equals(idExistente)) {
+                    throw new IllegalStateException("El inmueble " + nuevoId + " ya está asignado en " + key);
+                }
+            } else if (huecoLibre == null) {
+                huecoLibre = key;
+            }
+        }
+        return huecoLibre;
+    }
+
+    public void desasignarInmueble(String usuarioToken, String urlRecibida) {
+        log.info("Intento de desasignar inmueble para usuario: {}", usuarioToken);
+
+        String idTarget = mapperService.extraerIdDeUrl(urlRecibida);
+        if (idTarget == null)
+            throw new IllegalArgumentException("URL inválida.");
+
+        /* Pedir TODAS las propiedades de listing (legacy, _a y _v) */
+        StringBuilder propiedadesSolicitadas = new StringBuilder(HubSpotConstants.FIRSTNAME);
+        for (int i = 1; i <= MAX_VITRINA_SIZE; i++) {
+            propiedadesSolicitadas.append(",").append(HubSpotConstants.LISTING_PREFIX).append(i);
+            propiedadesSolicitadas.append(",").append(HubSpotConstants.LISTING_PREFIX).append(i).append("_a");
+            propiedadesSolicitadas.append(",").append(HubSpotConstants.LISTING_PREFIX).append(i).append("_v");
+        }
+
+        HubSpotContactDTO contacto = hubSpotClient.obtenerContacto(usuarioToken, propiedadesSolicitadas.toString());
+        if (contacto == null || contacto.getProperties() == null) {
+            throw new RecursoNoEncontradoException("Usuario no encontrado");
+        }
+
+        Map<String, String> propiedadesActuales = contacto.getProperties().getPropiedadesDinamicas();
+
+        /* Buscar en TODAS las categorías */
+        for (Map.Entry<String, String> entry : propiedadesActuales.entrySet()) {
+            String key = entry.getKey();
+            String urlEnSlot = entry.getValue();
+
+            if (key.startsWith(HubSpotConstants.LISTING_PREFIX)
+                    && urlEnSlot != null && !urlEnSlot.trim().isEmpty()) {
+
+                String idEnSlot = mapperService.extraerIdDeUrl(urlEnSlot);
+                if (idTarget.equals(idEnSlot)) {
+                    log.info("Desasignando inmueble del slot: {}", key);
+                    actualizarEnHubSpot(usuarioToken, key, "");
+                    return;
+                }
+            }
+        }
+
+        throw new RecursoNoEncontradoException("El inmueble no fue encontrado en la vitrina de este cliente.");
+    }
 
     private VitrinaResponseDTO.AsesorInfo construirInfoAsesor(String ownerId) {
         log.info("Iniciando mapeo para OwnerId: [{}]", ownerId);
@@ -392,15 +479,25 @@ public class OrquestadorService {
                 urlFoto = fotoM;
                 telefonoContacto = telM;
                 urlMeeting = meetM;
-            } else {
+            } else if (ownerId.equals(idA)) {
+                urlFoto = fotoA;
+                telefonoContacto = telA;
+                urlMeeting = meetA;
+            }
+            else if (ownerId.equals(idJS)){
+                urlFoto = fotoJS;
+                telefonoContacto = telJS;
+                urlMeeting = meetJS;
+            }
+            else {
                 log.warn("OwnerId [{}] no coincide con ningún asesor configurado", ownerId);
                 urlFoto = "https://via.placeholder.com/200?text=Asesor";
                 telefonoContacto = "No disponible";
                 urlMeeting = "https://habitarinmobiliaria.co/contacto";
             }
-
             return VitrinaResponseDTO.AsesorInfo.builder()
-                    .nombreCompleto(owner.getFirstName() + " " + (owner.getLastName() != null ? owner.getLastName() : ""))
+                    .nombreCompleto(
+                            owner.getFirstName() + " " + (owner.getLastName() != null ? owner.getLastName() : ""))
                     .correo(owner.getEmail())
                     .telefono(telefonoContacto)
                     .fotoUrl(urlFoto)

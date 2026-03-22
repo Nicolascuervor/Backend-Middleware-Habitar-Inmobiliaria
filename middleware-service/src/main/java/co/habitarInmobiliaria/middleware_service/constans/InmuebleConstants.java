@@ -2,10 +2,8 @@ package co.habitarinmobiliaria.middleware_service.constans;
 
 /* Constantes reutilizables para mapeo de inmuebles */
 public final class InmuebleConstants {
-
     private InmuebleConstants() {
     }
-
     public static final String FIELD_FIELDS = "fields";
     public static final String FIELD_TITULO = "Título";
     public static final String FIELD_PRECIO = "Precio";
