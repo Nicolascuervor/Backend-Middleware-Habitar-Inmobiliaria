@@ -1,48 +1,47 @@
 package co.habitarinmobiliaria.middleware_service.service;
 
+import static co.habitarinmobiliaria.middleware_service.constans.InmuebleConstants.*;
+
 import co.habitarinmobiliaria.middleware_service.dtos.InmuebleDetalleDTO;
 import co.habitarinmobiliaria.middleware_service.dtos.VitrinaInmuebleDTO;
-import co.habitarinmobiliaria.middleware_service.dtos.WasiInmuebleDTO;
+import co.habitarinmobiliaria.middleware_service.dtos.wasi.WasiInmuebleDTO;
+import com.fasterxml.jackson.databind.JsonNode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.apache.commons.text.StringEscapeUtils;
-import java.util.regex.Pattern;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 @Slf4j
 public class InmuebleMapperService {
 
-    public VitrinaInmuebleDTO mapAirtableToVitrina(com.fasterxml.jackson.databind.JsonNode airtableRecord,
+    public VitrinaInmuebleDTO mapAirtableToVitrina(JsonNode airtableRecord,
             String estadoInmueble, String urlOriginal) {
-        if (airtableRecord == null || !airtableRecord.has("fields")) {
+        if (airtableRecord == null || !airtableRecord.has(FIELD_FIELDS)) {
             return null;
         }
 
-        com.fasterxml.jackson.databind.JsonNode fields = airtableRecord.get("fields");
+        JsonNode fields = airtableRecord.get(FIELD_FIELDS);
         String idAirtable = airtableRecord.get("id").asText();
 
         /* Formatear precio */
-        long precioRaw = fields.has("Precio") ? fields.get("Precio").asLong() : 0L;
+        long precioRaw = fields.has(FIELD_PRECIO) ? fields.get(FIELD_PRECIO).asLong() : 0L;
         String precioFormateado = "$ " + String.format("%,d", precioRaw).replace(',', '.');
 
         /* Extraer imagen principal */
-        String imagenPrincipal = "https://via.placeholder.com/600x400?text=Inmueble+Privado";
-        if (fields.has("Imágenes") && fields.get("Imágenes").isArray() && fields.get("Imágenes").size() > 0) {
-            com.fasterxml.jackson.databind.JsonNode primeraImg = fields.get("Imágenes").get(0);
-            if (primeraImg.has("url")) {
-                imagenPrincipal = primeraImg.get("url").asText();
-            }
-        }
+        String imagenPrincipal = extraerImagenPrincipalAirtable(fields);
 
         return VitrinaInmuebleDTO.builder()
                 .id(idAirtable)
-                .titulo(fields.has("Título") ? fields.get("Título").asText() : "Propiedad Exclusiva")
+                .titulo(obtenerCampoAirtable(fields, FIELD_TITULO, "Propiedad Exclusiva"))
                 .precioFormateado(precioFormateado)
-                .ubicacion(fields.has("Ubicación") ? fields.get("Ubicación").asText() : "A solicitud")
-                .habitaciones(fields.has("Habitaciones") ? fields.get("Habitaciones").asText() : "0")
-                .banos(fields.has("Baños") ? fields.get("Baños").asText() : "0")
+                .ubicacion(obtenerCampoAirtable(fields, FIELD_UBICACION, FIELD_A_SOLICITUD))
+                .habitaciones(obtenerCampoAirtable(fields, FIELD_HABITACIONES, "0"))
+                .banos(obtenerCampoAirtable(fields, FIELD_BANOS, "0"))
                 .estado(estadoInmueble)
-                .area(fields.has("Área Construida") ? fields.get("Área Construida").asText() + " m²" : "N/A")
+                .area(fields.has(FIELD_AREA_CONSTRUIDA) ? fields.get(FIELD_AREA_CONSTRUIDA).asText() + " m²" : "N/A")
                 .imagenUrl(imagenPrincipal)
                 .imagenPrincipal(imagenPrincipal)
                 .estadoActualCliente(estadoInmueble)
@@ -50,23 +49,13 @@ public class InmuebleMapperService {
                 .build();
     }
 
-    private static final Pattern ID_PATTERN = Pattern.compile("(\\d+)$");
-
     /* Mapear Wasi a vitrina con estado */
     public VitrinaInmuebleDTO mapToVitrina(WasiInmuebleDTO source, String estadoInmueble, String urlOriginal) {
         String precioMostrar = "true".equals(source.getForRent())
                 ? source.getRentPriceLabel()
                 : source.getSalePriceLabel();
 
-        String descLimpia = "Sin descripción disponible.";
-        if (source.getObservations() != null && !source.getObservations().isEmpty()) {
-            String textoDecodificado = StringEscapeUtils.unescapeHtml4(source.getObservations());
-            String sinTags = textoDecodificado.replaceAll("\\<.*?\\>", " ");
-            descLimpia = sinTags.replaceAll("\\s+", " ").trim();
-            if (descLimpia.length() > 120) {
-                descLimpia = descLimpia.substring(0, 120) + "...";
-            }
-        }
+        String descLimpia = limpiarDescripcion(source.getObservations());
 
         return VitrinaInmuebleDTO.builder()
                 .id(source.getIdProperty())
@@ -108,7 +97,7 @@ public class InmuebleMapperService {
                 log.warn("Formato de ID desconocido en la URL: {}", url);
             }
 
-        } catch (Exception e) {
+        } catch (ArrayIndexOutOfBoundsException e) {
             log.error("Error al extraer el ID de la URL: {}", url, e);
         }
 
@@ -130,63 +119,137 @@ public class InmuebleMapperService {
 
     public InmuebleDetalleDTO mapToDetalle(WasiInmuebleDTO source, String estadoInmueble) {
 
-        /* 🚀 Lógica de precios y tipo de negocio (Soporte Dual y Defensivo) */
+        /* Resolver precios y tipo de negocio */
+        String[] negocioYPrecio = resolverPrecioYTipoNegocio(source);
+        String tipoNegocioCalculado = negocioYPrecio[0];
+        String precioMostrar = negocioYPrecio[1];
+
+        /* Ubicación completa */
+        String ubicacionCompleta = construirUbicacionCompleta(source);
+
+        /* Extraer características */
+        List<String> internas = extraerCaracteristicas(source.getFeatures(), FIELD_INTERNAL);
+        List<String> externas = extraerCaracteristicas(source.getFeatures(), FIELD_EXTERNAL);
+
+        /* Extraer galería de imágenes */
+        List<String> galeria = construirGaleria(source);
+
+        /* Construir DTO final */
+        return InmuebleDetalleDTO.builder()
+                .titulo(source.getTitle())
+                .tipoNegocio(tipoNegocioCalculado)
+                .precioFormateado(precioMostrar)
+                .valorAdministracion(obtenerStringODefault(source.getMaintenanceFee(), "N/A", "$"))
+                .estadoActualCliente(estadoInmueble)
+                .ubicacion(ubicacionCompleta)
+                .zona(obtenerStringODefault(source.getZoneLabel(), "No especificada"))
+                .direccion(obtenerStringODefault(source.getAddress(), FIELD_A_SOLICITUD))
+                .estrato(obtenerStringODefault(source.getStratum(), "N/A"))
+                .tipoInmueble(obtenerStringODefault(source.getPropertyTypeLabel(), "Inmueble"))
+                .areaConstruida(obtenerStringODefault(source.getBuiltArea(), "N/A", "", " m²"))
+                .areaTerreno(obtenerStringODefault(source.getArea(), "N/A", "", " m²"))
+                .areaPrivada(obtenerStringODefault(source.getPrivateArea(), "N/A", "", " m²"))
+                .habitaciones(obtenerStringODefault(source.getBedrooms(), "0"))
+                .banos(obtenerStringODefault(source.getBathrooms(), "0"))
+                .estacionamiento(obtenerStringODefault(source.getGarages(), "0"))
+                .piso(obtenerStringODefault(source.getFloor(), "N/A"))
+                .estadoFisico(obtenerStringODefault(source.getPropertyConditionLabel(), "N/A"))
+                .anioConstruccion(obtenerStringODefault(source.getBuildingDate(), "N/A"))
+                .caracteristicasInternas(internas)
+                .caracteristicasExternas(externas)
+                .galeriasImagenes(galeria)
+                .build();
+    }
+
+    public InmuebleDetalleDTO mapAirtableToDetalle(JsonNode airtableRecord,
+            String estadoInmueble) {
+        if (airtableRecord == null || !airtableRecord.has(FIELD_FIELDS)) {
+            throw new IllegalArgumentException("El registro de Airtable está vacío o no tiene el formato esperado.");
+        }
+
+        JsonNode fields = airtableRecord.get(FIELD_FIELDS);
+
+        /* Extraer y formatear precio */
+        long precioRaw = fields.has(FIELD_PRECIO) ? fields.get(FIELD_PRECIO).asLong() : 0L;
+        String precioFormateado = "$ " + String.format("%,d", precioRaw).replace(',', '.');
+
+        /* Extraer administración */
+        String valorAdministracion = extraerAdministracion(fields);
+
+        /* Características */
+        List<String> internas = extraerListaTextos(fields, FIELD_CARACT_INTERNAS);
+        List<String> externas = extraerListaTextos(fields, FIELD_CARACT_EXTERNAS);
+
+        /* Galería de imágenes */
+        List<String> galeria = extraerGaleriaAirtable(fields);
+
+        return construirDetalleAirtable(fields, estadoInmueble, precioFormateado,
+                valorAdministracion, internas, externas, galeria);
+    }
+
+    private String limpiarDescripcion(String observations) {
+        if (observations == null || observations.isEmpty()) {
+            return "Sin descripción disponible.";
+        }
+        String textoDecodificado = StringEscapeUtils.unescapeHtml4(observations);
+        String sinTags = textoDecodificado.replaceAll("<[^>]*+>", " ");
+        String limpio = sinTags.replaceAll("\\s+", " ").trim();
+        return limpio.length() > 120 ? limpio.substring(0, 120) + "..." : limpio;
+    }
+
+    private String extraerImagenPrincipalAirtable(JsonNode fields) {
+        if (fields.has(FIELD_IMAGENES) && fields.get(FIELD_IMAGENES).isArray()
+                && fields.get(FIELD_IMAGENES).size() > 0) {
+            JsonNode primeraImg = fields.get(FIELD_IMAGENES).get(0);
+            if (primeraImg.has("url")) {
+                return primeraImg.get("url").asText();
+            }
+        }
+        return "https://via.placeholder.com/600x400?text=Inmueble+Privado";
+    }
+
+    private String[] resolverPrecioYTipoNegocio(WasiInmuebleDTO source) {
         boolean esVenta = "true".equalsIgnoreCase(source.getForSale());
         boolean esAlquiler = "true".equalsIgnoreCase(source.getForRent());
 
-        String tipoNegocioCalculado = "No especificado";
-        String precioMostrar = "Consultar precio";
-
         if (esVenta && esAlquiler) {
-            tipoNegocioCalculado = "Venta y Alquiler";
-            String pVenta = source.getSalePriceLabel() != null ? source.getSalePriceLabel() : "N/A";
-            String pAlquiler = source.getRentPriceLabel() != null ? source.getRentPriceLabel() : "N/A";
-            // Concatenamos ambos precios para que el frontend los reciba listos para mostrar
-            precioMostrar = "Venta: " + pVenta + " | Alquiler: " + pAlquiler;
-
-        } else if (esVenta) {
-            tipoNegocioCalculado = "Venta";
-            precioMostrar = source.getSalePriceLabel() != null ? source.getSalePriceLabel() : "Consultar";
-
-        } else if (esAlquiler) {
-            tipoNegocioCalculado = "Alquiler";
-            precioMostrar = source.getRentPriceLabel() != null ? source.getRentPriceLabel() : "Consultar";
+            String pVenta = obtenerStringODefault(source.getSalePriceLabel(), "N/A");
+            String pAlquiler = obtenerStringODefault(source.getRentPriceLabel(), "N/A");
+            return new String[] { "Venta y Alquiler", "Venta: " + pVenta + " | Alquiler: " + pAlquiler };
         }
+        if (esVenta) {
+            return new String[] { "Venta", obtenerStringODefault(source.getSalePriceLabel(), "Consultar") };
+        }
+        if (esAlquiler) {
+            return new String[] { "Alquiler", obtenerStringODefault(source.getRentPriceLabel(), "Consultar") };
+        }
+        return new String[] { "No especificado", "Consultar precio" };
+    }
 
-        /* Lógica de ubicación */
-        String ubicacionCompleta = String.format("%s, %s, %s",
-                        source.getCountryLabel() != null ? source.getCountryLabel() : "",
-                        source.getRegionLabel() != null ? source.getRegionLabel() : "",
-                        source.getCityLabel() != null ? source.getCityLabel() : "").replaceAll("^, |, $|(?<=, )(?=,)", "")
+    private String construirUbicacionCompleta(WasiInmuebleDTO source) {
+        return String.format("%s, %s, %s",
+                obtenerStringODefault(source.getCountryLabel(), ""),
+                obtenerStringODefault(source.getRegionLabel(), ""),
+                obtenerStringODefault(source.getCityLabel(), ""))
+                .replaceAll("^, |, $|(?<=, )(?=,)", "")
                 .trim();
+    }
 
-        /* Extraer características */
-        java.util.List<String> internas = new java.util.ArrayList<>();
-        java.util.List<String> externas = new java.util.ArrayList<>();
-
-        if (source.getFeatures() != null && source.getFeatures().isObject()) {
-
-            /* Características internas */
-            if (source.getFeatures().has("internal") && source.getFeatures().get("internal").isArray()) {
-                for (com.fasterxml.jackson.databind.JsonNode nodo : source.getFeatures().get("internal")) {
-                    if (nodo.has("nombre")) {
-                        internas.add(nodo.get("nombre").asText());
-                    }
-                }
-            }
-
-            /* Características externas */
-            if (source.getFeatures().has("external") && source.getFeatures().get("external").isArray()) {
-                for (com.fasterxml.jackson.databind.JsonNode nodo : source.getFeatures().get("external")) {
-                    if (nodo.has("nombre")) {
-                        externas.add(nodo.get("nombre").asText());
-                    }
-                }
+    private List<String> extraerCaracteristicas(JsonNode features, String key) {
+        List<String> resultado = new ArrayList<>();
+        if (features == null || !features.isObject() || !features.has(key) || !features.get(key).isArray()) {
+            return resultado;
+        }
+        for (JsonNode nodo : features.get(key)) {
+            if (nodo.has(FIELD_NOMBRE)) {
+                resultado.add(nodo.get(FIELD_NOMBRE).asText());
             }
         }
+        return resultado;
+    }
 
-        /* Extraer galería de imágenes */
-        java.util.List<String> galeria = new java.util.ArrayList<>();
+    private List<String> construirGaleria(WasiInmuebleDTO source) {
+        List<String> galeria = new ArrayList<>();
 
         /* Imagen principal primero */
         if (source.getMainImage() != null && source.getMainImage().getUrl() != null) {
@@ -195,127 +258,105 @@ public class InmuebleMapperService {
 
         /* Resto de imágenes */
         if (source.getGalleries() != null && source.getGalleries().isArray()) {
-            for (com.fasterxml.jackson.databind.JsonNode galeriaNodo : source.getGalleries()) {
-
-                if (galeriaNodo.isObject()) {
-                    galeriaNodo.fields().forEachRemaining(entry -> {
-                        com.fasterxml.jackson.databind.JsonNode valorImagen = entry.getValue();
-
-                        /* Solo agregar si tiene URL y no está repetida */
-                        if (valorImagen.isObject() && valorImagen.has("url")) {
-                            String urlImagen = valorImagen.get("url").asText();
-
-                            if (urlImagen != null && !galeria.contains(urlImagen)) {
-                                galeria.add(urlImagen);
-                            }
-                        }
-                    });
-                }
+            for (JsonNode galeriaNodo : source.getGalleries()) {
+                agregarImagenesDeGaleria(galeriaNodo, galeria);
             }
         }
+        return galeria;
+    }
 
-        /* Construir DTO final */
+    private void agregarImagenesDeGaleria(JsonNode galeriaNodo, List<String> galeria) {
+        if (!galeriaNodo.isObject()) {
+            return;
+        }
+        galeriaNodo.properties().forEach(entry -> {
+            JsonNode valorImagen = entry.getValue();
+            if (valorImagen.isObject() && valorImagen.has("url")) {
+                String urlImagen = valorImagen.get("url").asText();
+                if (urlImagen != null && !galeria.contains(urlImagen)) {
+                    galeria.add(urlImagen);
+                }
+            }
+        });
+    }
+
+    private String extraerAdministracion(JsonNode fields) {
+        if (fields.has("Valor Administración")) {
+            long adminRaw = fields.get("Valor Administración").asLong();
+            return "$ " + String.format("%,d", adminRaw).replace(',', '.');
+        }
+        return "N/A";
+    }
+
+    private List<String> extraerListaTextos(JsonNode fields, String key) {
+        List<String> resultado = new ArrayList<>();
+        if (fields.has(key) && fields.get(key).isArray()) {
+            fields.get(key).forEach(nodo -> resultado.add(nodo.asText()));
+        }
+        return resultado;
+    }
+
+    private List<String> extraerGaleriaAirtable(JsonNode fields) {
+        List<String> galeria = new ArrayList<>();
+        if (fields.has(FIELD_IMAGENES) && fields.get(FIELD_IMAGENES).isArray()) {
+            fields.get(FIELD_IMAGENES).forEach(imgNodo -> {
+                if (imgNodo.has("url")) {
+                    galeria.add(imgNodo.get("url").asText());
+                }
+            });
+        }
+        return galeria;
+    }
+
+    private InmuebleDetalleDTO construirDetalleAirtable(JsonNode fields, String estadoInmueble,
+            String precioFormateado, String valorAdministracion,
+            List<String> internas, List<String> externas, List<String> galeria) {
         return InmuebleDetalleDTO.builder()
-                .titulo(source.getTitle())
-                // Inyectamos las variables locales que procesamos arriba
-                .tipoNegocio(tipoNegocioCalculado)
-                .precioFormateado(precioMostrar)
-
-                .valorAdministracion(source.getMaintenanceFee() != null ? "$" + source.getMaintenanceFee() : "N/A")
+                .titulo(obtenerCampoAirtable(fields, FIELD_TITULO, "Sin título"))
+                .tipoNegocio(obtenerCampoAirtable(fields, "Tipo Negocio", "N/A"))
+                .precioFormateado(precioFormateado)
+                .valorAdministracion(valorAdministracion)
                 .estadoActualCliente(estadoInmueble)
-
-                .ubicacion(ubicacionCompleta)
-                .zona(source.getZoneLabel() != null ? source.getZoneLabel() : "No especificada")
-                .direccion(source.getAddress() != null ? source.getAddress() : "A solicitud")
-                .estrato(source.getStratum() != null ? source.getStratum() : "N/A")
-
-                .tipoInmueble(source.getPropertyTypeLabel() != null ? source.getPropertyTypeLabel() : "Inmueble")
-                .areaConstruida(source.getBuiltArea() != null ? source.getBuiltArea() + " m²" : "N/A")
-                .areaTerreno(source.getArea() != null ? source.getArea() + " m²" : "N/A")
-                .areaPrivada(source.getPrivateArea() != null ? source.getPrivateArea() + " m²" : "N/A")
-                .habitaciones(source.getBedrooms() != null ? source.getBedrooms() : "0")
-                .banos(source.getBathrooms() != null ? source.getBathrooms() : "0")
-                .estacionamiento(source.getGarages() != null ? source.getGarages() : "0")
-                .piso(source.getFloor() != null ? source.getFloor() : "N/A")
-                .estadoFisico(source.getPropertyConditionLabel() != null ? source.getPropertyConditionLabel() : "N/A")
-                .anioConstruccion(source.getBuildingDate() != null ? source.getBuildingDate() : "N/A")
-
+                .ubicacion(obtenerCampoAirtable(fields, FIELD_UBICACION, "N/A"))
+                .zona(obtenerCampoAirtable(fields, "Zona", "N/A"))
+                .direccion(obtenerCampoAirtable(fields, "Dirección", FIELD_A_SOLICITUD))
+                .estrato(obtenerCampoAirtable(fields, "Estrato", "N/A"))
+                .tipoInmueble(obtenerCampoAirtable(fields, "Tipo Inmueble", "Inmueble"))
+                .areaConstruida(
+                        fields.has(FIELD_AREA_CONSTRUIDA) ? fields.get(FIELD_AREA_CONSTRUIDA).asText() + " m²" : "N/A")
+                .areaTerreno(
+                        fields.has("Área Terreno")
+                                ? fields.get("Área Terreno").asText() + " m²"
+                                : "N/A")
+                .areaPrivada(
+                        fields.has("Área Privada")
+                                ? fields.get("Área Privada").asText() + " m²"
+                                : "N/A")
+                .habitaciones(obtenerCampoAirtable(fields, FIELD_HABITACIONES, "0"))
+                .banos(obtenerCampoAirtable(fields, FIELD_BANOS, "0"))
+                .estacionamiento(obtenerCampoAirtable(fields, "Estacionamiento", "0"))
+                .piso(obtenerCampoAirtable(fields, "Piso", "N/A"))
+                .estadoFisico(obtenerCampoAirtable(fields, "Estado Físico", "N/A"))
+                .anioConstruccion(obtenerCampoAirtable(fields, "Año Construcción", "N/A"))
                 .caracteristicasInternas(internas)
                 .caracteristicasExternas(externas)
                 .galeriasImagenes(galeria)
                 .build();
     }
 
-    public InmuebleDetalleDTO mapAirtableToDetalle(com.fasterxml.jackson.databind.JsonNode airtableRecord,
-            String estadoInmueble) {
-        if (airtableRecord == null || !airtableRecord.has("fields")) {
-            throw new RuntimeException("El registro de Airtable está vacío o no tiene el formato esperado.");
-        }
+    private String obtenerCampoAirtable(JsonNode fields, String key, String defaultVal) {
+        return fields.has(key) ? fields.get(key).asText() : defaultVal;
+    }
 
-        com.fasterxml.jackson.databind.JsonNode fields = airtableRecord.get("fields");
+    private String obtenerStringODefault(String value, String defaultVal) {
+        return value != null ? value : defaultVal;
+    }
 
-        /* Extraer y formatear precio */
-        long precioRaw = fields.has("Precio") ? fields.get("Precio").asLong() : 0L;
-        String precioFormateado = "$ " + String.format("%,d", precioRaw).replace(',', '.');
+    private String obtenerStringODefault(String value, String defaultVal, String prefix) {
+        return value != null ? prefix + value : defaultVal;
+    }
 
-        /* Extraer administración */
-        String valorAdministracion = "N/A";
-        if (fields.has("Valor Administración")) {
-            long adminRaw = fields.get("Valor Administración").asLong();
-            valorAdministracion = "$ " + String.format("%,d", adminRaw).replace(',', '.');
-        }
-
-        /* Características internas */
-        java.util.List<String> internas = new java.util.ArrayList<>();
-        if (fields.has("Características Internas") && fields.get("Características Internas").isArray()) {
-            fields.get("Características Internas").forEach(nodo -> internas.add(nodo.asText()));
-        }
-
-        /* Características externas */
-        java.util.List<String> externas = new java.util.ArrayList<>();
-        if (fields.has("Características Externas") && fields.get("Características Externas").isArray()) {
-            fields.get("Características Externas").forEach(nodo -> externas.add(nodo.asText()));
-        }
-
-        /* Galería de imágenes */
-        java.util.List<String> galeria = new java.util.ArrayList<>();
-        if (fields.has("Imágenes") && fields.get("Imágenes").isArray()) {
-            fields.get("Imágenes").forEach(imgNodo -> {
-                if (imgNodo.has("url")) {
-                    galeria.add(imgNodo.get("url").asText());
-                }
-            });
-        }
-
-        return InmuebleDetalleDTO.builder()
-                .titulo(fields.has("Título") ? fields.get("Título").asText() : "Sin título")
-                .tipoNegocio(fields.has("Tipo Negocio") ? fields.get("Tipo Negocio").asText() : "N/A")
-                .precioFormateado(precioFormateado)
-                .valorAdministracion(valorAdministracion)
-                .estadoActualCliente(estadoInmueble)
-
-                .ubicacion(fields.has("Ubicación") ? fields.get("Ubicación").asText() : "N/A")
-                .zona(fields.has("Zona") ? fields.get("Zona").asText() : "N/A")
-                .direccion(fields.has("Dirección") ? fields.get("Dirección").asText() : "A solicitud")
-                .estrato(fields.has("Estrato") ? fields.get("Estrato").asText() : "N/A")
-
-                .tipoInmueble(fields.has("Tipo Inmueble") ? fields.get("Tipo Inmueble").asText() : "Inmueble")
-                .areaConstruida(fields.has("Área Construida") ? fields.get("Área Construida").asText() + " m²" : "N/A")
-                .areaTerreno(fields.has("Área Terreno") ? fields.get("Área Terreno").asText() + " m²" : "N/A")
-                .areaPrivada(fields.has("Área Privada") ? fields.get("Área Privada").asText() + " m²" : "N/A")
-                .habitaciones(fields.has("Habitaciones") ? fields.get("Habitaciones").asText() : "0")
-                .banos(fields.has("Baños") ? fields.get("Baños").asText() : "0")
-                .estacionamiento(fields.has("Estacionamiento") ? fields.get("Estacionamiento").asText() : "0")
-                .piso(fields.has("Piso") ? fields.get("Piso").asText() : "N/A")
-                .estadoFisico(fields.has("Estado Físico") ? fields.get("Estado Físico").asText() : "N/A")
-                .anioConstruccion(fields.has("Año Construcción") ? fields.get("Año Construcción").asText() : "N/A")
-
-                /* Dueño asumido por contexto de Airtable */
-                //.encargado(fields.has("ID Dueño") ? "Asesor Privado" : "No asignado")
-
-                .caracteristicasInternas(internas)
-                .caracteristicasExternas(externas)
-                .galeriasImagenes(galeria)
-                .build();
+    private String obtenerStringODefault(String value, String defaultVal, String prefix, String suffix) {
+        return value != null ? prefix + value + suffix : defaultVal;
     }
 }

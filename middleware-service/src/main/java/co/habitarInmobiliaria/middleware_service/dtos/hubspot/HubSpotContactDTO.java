@@ -1,4 +1,4 @@
-package co.habitarinmobiliaria.middleware_service.dtos;
+package co.habitarinmobiliaria.middleware_service.dtos.hubspot;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -24,20 +24,6 @@ public class HubSpotContactDTO {
         @JsonProperty("hubspot_owner_id")
         private String ownerId;
 
-        @JsonProperty("listing_1")
-        private String listing1;
-
-        @JsonProperty("listing_2")
-        private String listing2;
-
-        @JsonProperty("listing_3")
-        private String listing3;
-
-        @JsonProperty("listing_4")
-        private String listing4;
-
-        @JsonProperty("listing_5")
-        private String listing5;
 
         @com.fasterxml.jackson.annotation.JsonIgnore
         private java.util.Map<String, String> propiedadesDinamicas = new java.util.HashMap<>();

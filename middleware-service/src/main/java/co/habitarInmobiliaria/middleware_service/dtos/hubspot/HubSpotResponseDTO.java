@@ -1,4 +1,4 @@
-package co.habitarinmobiliaria.middleware_service.dtos;
+package co.habitarinmobiliaria.middleware_service.dtos.hubspot;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

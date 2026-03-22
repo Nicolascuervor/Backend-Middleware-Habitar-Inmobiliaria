@@ -24,6 +24,11 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
+    private final RateLimitFilter rateLimitFilter;
+
+    /* Orígenes CORS inyectados desde perfil activo */
+    @org.springframework.beans.factory.annotation.Value("${cors.allowed-origins}")
+    private String[] corsAllowedOrigins;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -41,6 +46,8 @@ public class SecurityConfig {
                         .anyRequest().authenticated())
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                /* Rate limit antes de autenticación */
+                .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
@@ -50,15 +57,8 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        /* Orígenes permitidos */
-        configuration.setAllowedOriginPatterns(List.of(
-                "http://localhost:8000",
-                "http://localhost:3000",
-                "http://localhost:5173",
-                "http://localhost:4200",
-                "https://*.loca.lt",
-                "https://*.lhr.life",
-                "https://*.trycloudflare.com"));
+        /* Orígenes inyectados desde application-{perfil}.properties */
+        configuration.setAllowedOriginPatterns(List.of(corsAllowedOrigins));
 
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "bypass-tunnel-reminder"));

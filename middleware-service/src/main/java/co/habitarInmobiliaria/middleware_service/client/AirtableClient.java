@@ -1,12 +1,12 @@
 package co.habitarinmobiliaria.middleware_service.client;
 
 import co.habitarinmobiliaria.middleware_service.config.AirtableFeignConfig;
-import co.habitarinmobiliaria.middleware_service.dtos.AirtableResponseDTO;
+import co.habitarinmobiliaria.middleware_service.dtos.airtable.AirtableResponseDTO;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
-import co.habitarinmobiliaria.middleware_service.dtos.AirtableCreateRequestDTO;
+import co.habitarinmobiliaria.middleware_service.dtos.airtable.AirtableCreateRequestDTO;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import org.springframework.web.bind.annotation.PostMapping;

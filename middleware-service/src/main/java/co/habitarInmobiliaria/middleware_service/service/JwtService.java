@@ -18,6 +18,15 @@ public class JwtService {
     @Value("${jwt.expiration}")
     private long jwtExpiration;
 
+    /* Validar configuración de JWT al arrancar */
+    @jakarta.annotation.PostConstruct
+    public void validarConfiguracion() {
+        if (secretKey == null || secretKey.isBlank() || secretKey.length() < 64) {
+            throw new IllegalStateException(
+                    "JWT_SECRET_KEY no configurada o demasiado corta. Mínimo 64 caracteres.");
+        }
+    }
+
     /* Generar llave criptográfica */
     private SecretKey getSigningKey() {
         return Keys.hmacShaKeyFor(secretKey.getBytes());

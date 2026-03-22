@@ -33,10 +33,11 @@ public class GlobalExceptionHandler {
         if (status == null)
             status = HttpStatus.BAD_GATEWAY;
 
-        String mensaje = "Error en comunicación con servicio externo: " + ex.getMessage();
+        /* Log interno completo para debugging */
         log.error("Error Feign detectado: status={} body={}", ex.status(), ex.contentUTF8());
 
-        return construirRespuesta(status, mensaje, request);
+        /* Mensaje genérico al cliente — sin detalles internos */
+        return construirRespuesta(status, "Error en comunicación con servicio externo", request);
     }
 
     /* Catch-all para errores no previstos */

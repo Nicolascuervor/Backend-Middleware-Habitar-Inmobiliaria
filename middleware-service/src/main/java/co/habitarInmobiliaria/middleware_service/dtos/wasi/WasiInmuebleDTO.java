@@ -1,4 +1,4 @@
-package co.habitarinmobiliaria.middleware_service.dtos;
+package co.habitarinmobiliaria.middleware_service.dtos.wasi;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -84,7 +84,8 @@ public class WasiInmuebleDTO {
     @JsonAlias("maintenance_fee")
     private String maintenanceFee;
 
-    private com.fasterxml.jackson.databind.JsonNode user_data;
+    @JsonProperty("user_data")
+    private com.fasterxml.jackson.databind.JsonNode userData;
 
     /* Descripción */
     private String observations;
