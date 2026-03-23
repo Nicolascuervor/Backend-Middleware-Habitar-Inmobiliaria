@@ -10,4 +10,8 @@ public final class HubSpotConstants {
     public static final String LASTNAME = "lastname";
     public static final String OWNER_ID = "hubspot_owner_id";
     public static final String LISTING_PREFIX = "listing_";
+
+
+    public static final String LISTINGS_ALQUILER_DATA = "listings_alquiler_data";
+    public static final String LISTINGS_VENTA_DATA = "listings_venta_data";
 }

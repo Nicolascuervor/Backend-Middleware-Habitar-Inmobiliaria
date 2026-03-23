@@ -6,6 +6,6 @@ import org.springframework.stereotype.Component;
 @Component
 public class AprobarStrategy implements EstadoInmuebleStrategy {
     public String getSufijo() { return "-APROBADO"; }
-    public String getNombreEstado() { return "APROBADO"; }
+    public String getNombre() { return "APROBADO"; }
     public boolean aplicaPara(String accion) { return "aprobar".equalsIgnoreCase(accion); }
 }

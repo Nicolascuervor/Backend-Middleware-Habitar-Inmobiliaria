@@ -6,6 +6,6 @@ import org.springframework.stereotype.Component;
 @Component
 public class DescartarStrategy implements EstadoInmuebleStrategy {
     public String getSufijo() { return "-DESCARTADO"; }
-    public String getNombreEstado() { return "DESCARTADO"; }
+    public String getNombre() { return "DESCARTADO"; }
     public boolean aplicaPara(String accion) { return "descartar".equalsIgnoreCase(accion); }
 }

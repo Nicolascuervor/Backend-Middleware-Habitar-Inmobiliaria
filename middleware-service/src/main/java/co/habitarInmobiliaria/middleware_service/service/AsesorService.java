@@ -29,14 +29,12 @@ public class AsesorService {
         log.info("Buscando clientes paginados para el Asesor OwnerId: {} | Limit: {}", ownerId, limit);
 
         /* Generar propiedades solicitadas */
-        List<String> propiedadesSolicitadas = new java.util.ArrayList<>(List.of(
-                HubSpotConstants.FIRSTNAME, HubSpotConstants.LASTNAME));
-        int maxListings = 30;
-        for (int i = 1; i <= maxListings; i++) {
-            propiedadesSolicitadas.add(HubSpotConstants.LISTING_PREFIX + i);
-            propiedadesSolicitadas.add(HubSpotConstants.LISTING_PREFIX + i + "_a");
-            propiedadesSolicitadas.add(HubSpotConstants.LISTING_PREFIX + i + "_v");
-        }
+        List<String> propiedadesSolicitadas = List.of(
+                HubSpotConstants.FIRSTNAME,
+                HubSpotConstants.LASTNAME,
+                HubSpotConstants.LISTINGS_ALQUILER_DATA,
+                HubSpotConstants.LISTINGS_VENTA_DATA
+        );
 
         /* Construir filtro por asesor */
         HubSpotSearchRequestDTO.Filter filtroAsesor = HubSpotSearchRequestDTO.Filter.builder()
@@ -95,12 +93,16 @@ public class AsesorService {
         String apellido = props.getLastname() != null ? props.getLastname() : "";
 
         Map<String, String> listingsMap = new HashMap<>();
-        if (props.getPropiedadesDinamicas() != null) {
-            props.getPropiedadesDinamicas().forEach((key, value) -> {
-                if (key != null && key.startsWith("listing_") && value != null && !value.trim().isEmpty()) {
-                    listingsMap.put(key, value);
-                }
-            });
+        Map<String, String> dinamicas = props.getPropiedadesDinamicas();
+
+        if (dinamicas != null) {
+            String alquilerJson = dinamicas.get(HubSpotConstants.LISTINGS_ALQUILER_DATA);
+            String ventaJson = dinamicas.get(HubSpotConstants.LISTINGS_VENTA_DATA);
+
+            if (alquilerJson != null && !alquilerJson.isBlank())
+                listingsMap.put(HubSpotConstants.LISTINGS_ALQUILER_DATA, alquilerJson);
+            if (ventaJson != null && !ventaJson.isBlank())
+                listingsMap.put(HubSpotConstants.LISTINGS_VENTA_DATA, ventaJson);
         }
 
         return ClienteAsesorDTO.builder()
