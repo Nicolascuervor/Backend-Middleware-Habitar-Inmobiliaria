@@ -51,4 +51,11 @@ public class InmueblePrivadoController {
             return ResponseEntity.badRequest().body(error);
         }
     }
+
+    @GetMapping("/{codigo}")
+    public ResponseEntity<Map<String, Object>> obtenerInmueblePorCodigo(@PathVariable String codigo) {
+        log.info("Recibida petición para obtener inmueble con código: {}", codigo);
+        Map<String, Object> respuesta = inmueblePrivadoService.obtenerInmueblePorCodigo(codigo);
+        return ResponseEntity.ok(respuesta);
+    }
 }

@@ -2,6 +2,7 @@ package co.habitarinmobiliaria.middleware_service.service;
 
 import co.habitarinmobiliaria.middleware_service.dtos.hubspot.HubSpotFileResponseDTO;
 import co.habitarinmobiliaria.middleware_service.dtos.hubspot.HubSpotFolderResponseDTO;
+import co.habitarinmobiliaria.middleware_service.dtos.hubspot.HubSpotSearchFilesResponseDTO;
 import co.habitarinmobiliaria.middleware_service.exception.ErrorExternoException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -13,6 +14,7 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.List;
 import java.util.Map;
 
 @Slf4j
@@ -127,6 +129,59 @@ public class HubSpotFilesService {
         } catch (Exception e) {
             log.error("Error al serializar metadatos", e);
             throw new ErrorExternoException("Error al procesar metadatos del inmueble");
+        }
+    }
+
+    /* Buscar carpeta por código (usamos el nombre) */
+    public String buscarCarpetaPorNombre(String codigo) {
+        log.info("Buscando carpeta en HubSpot con código: {}", codigo);
+        HttpHeaders headers = crearHeadersJson();
+        String url = HUBSPOT_FOLDERS_URL + "/search?name=" + codigo;
+
+        HttpEntity<Void> request = new HttpEntity<>(headers);
+
+        try {
+            ResponseEntity<HubSpotSearchFilesResponseDTO> response = restTemplate.exchange(
+                    url, HttpMethod.GET, request, HubSpotSearchFilesResponseDTO.class);
+
+            if (response.getBody() == null || response.getBody().getResults() == null || response.getBody().getResults().isEmpty()) {
+                throw new ErrorExternoException("No se encontró ninguna carpeta registrada con la referencia aportada.");
+            }
+
+            /* Retornamos el id de la primera carpeta que coincida */
+            String folderId = response.getBody().getResults().get(0).get("id").toString();
+            log.info("Carpeta encontrada. FolderId: {}", folderId);
+            return folderId;
+
+        } catch (ErrorExternoException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Error al buscar carpeta en HubSpot", e);
+            throw new ErrorExternoException("Error al buscar carpeta en HubSpot: " + e.getMessage());
+        }
+    }
+
+    /* Obtener lista de archivos dentro de una carpeta */
+    public List<Map<String, Object>> obtenerArchivosDeCarpeta(String folderId) {
+        log.info("Obteniendo archivos de la carpeta con ID: {}", folderId);
+        HttpHeaders headers = crearHeadersJson();
+        String url = HUBSPOT_FILES_URL + "/search?parentFolderId=" + folderId;
+
+        HttpEntity<Void> request = new HttpEntity<>(headers);
+
+        try {
+            ResponseEntity<HubSpotSearchFilesResponseDTO> response = restTemplate.exchange(
+                    url, HttpMethod.GET, request, HubSpotSearchFilesResponseDTO.class);
+
+            if (response.getBody() == null || response.getBody().getResults() == null) {
+                return List.of();
+            }
+
+            return response.getBody().getResults();
+
+        } catch (Exception e) {
+            log.error("Error al buscar archivos en HubSpot", e);
+            throw new ErrorExternoException("Error al obtener archivos de la propiedad: " + e.getMessage());
         }
     }
 

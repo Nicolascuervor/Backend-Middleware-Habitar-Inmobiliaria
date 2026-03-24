@@ -2,9 +2,11 @@ package co.habitarinmobiliaria.middleware_service.service;
 
 import co.habitarinmobiliaria.middleware_service.dtos.CrearInmueblePrivadoDTO;
 import co.habitarinmobiliaria.middleware_service.exception.ErrorExternoException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -16,6 +18,8 @@ import java.util.*;
 public class InmueblePrivadoService {
 
     private final HubSpotFilesService hubSpotFilesService;
+    private final ObjectMapper objectMapper;
+    private final RestTemplate restTemplate = new RestTemplate();
 
     /* Extensiones y tipos MIME permitidos para imágenes */
     private static final Set<String> EXTENSIONES_PERMITIDAS = Set.of(".jpg", ".jpeg", ".png", ".webp");
@@ -63,6 +67,53 @@ public class InmueblePrivadoService {
 
         log.info("Inmueble creado exitosamente. FolderId: {} | Código: {} | Imágenes: {}", folderId, idCorto, urlsImagenes.size());
         return Map.of("folderId", folderId, "codigoIdentificador", idCorto);
+    }
+
+    public Map<String, Object> obtenerInmueblePorCodigo(String codigo) {
+        log.info("Buscando inmueble privado por código: {}", codigo);
+
+        /* 1. Buscar ID de la carpeta */
+        String folderId = hubSpotFilesService.buscarCarpetaPorNombre(codigo);
+
+        /* 2. Obtener lista de archivos */
+        List<Map<String, Object>> archivos = hubSpotFilesService.obtenerArchivosDeCarpeta(folderId);
+
+        String urlMetadatos = null;
+        List<String> urlsImagenes = new ArrayList<>();
+
+        for (Map<String, Object> archivo : archivos) {
+            String name = (String) archivo.get("name");
+            String extension = (String) archivo.get("extension");
+            String type = (String) archivo.get("type");
+            String url = (String) archivo.get("url");
+
+            if ("metadatos".equals(name) && "json".equals(extension)) {
+                urlMetadatos = url;
+            } else if ("IMG".equals(type) && url != null) {
+                urlsImagenes.add(url);
+            }
+        }
+
+        if (urlMetadatos == null) {
+            throw new ErrorExternoException("No se encontraron los metadatos del inmueble en HubSpot.");
+        }
+
+        /* 3. Descargar y parsear metadatos */
+        try {
+            String jsonMetadatos = restTemplate.getForObject(urlMetadatos, String.class);
+            Map<String, Object> inmueble = objectMapper.readValue(jsonMetadatos, Map.class);
+            
+            /* 4. Adjuntar imágenes al mapa resultante */
+            inmueble.put("imagenes", urlsImagenes);
+            inmueble.put("codigoIdentificador", codigo);
+            
+            log.info("Inmueble {} recuperado exitosamente con {} imágenes", codigo, urlsImagenes.size());
+            return inmueble;
+            
+        } catch (Exception e) {
+            log.error("Error al descargar o procesar metadatos.json desde URL: {}", urlMetadatos, e);
+            throw new ErrorExternoException("Error al procesar la información del inmueble: " + e.getMessage());
+        }
     }
 
     /* Construir mapa de metadatos desde el DTO */
