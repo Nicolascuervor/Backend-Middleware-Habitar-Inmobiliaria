@@ -100,7 +100,8 @@ public class InmueblePrivadoService {
 
         /* 3. Descargar y parsear metadatos */
         try {
-            String jsonMetadatos = restTemplate.getForObject(urlMetadatos, String.class);
+            /* Usamos URI.create para evitar que RestTemplate codifique doblemente los %20 como %2520 */
+            String jsonMetadatos = restTemplate.getForObject(java.net.URI.create(urlMetadatos), String.class);
             Map<String, Object> inmueble = objectMapper.readValue(jsonMetadatos, Map.class);
             
             /* 4. Adjuntar imágenes al mapa resultante */
