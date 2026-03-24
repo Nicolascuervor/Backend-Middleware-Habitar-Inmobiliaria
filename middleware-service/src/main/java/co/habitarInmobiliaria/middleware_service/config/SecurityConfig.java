@@ -63,6 +63,7 @@ public class SecurityConfig {
         java.util.List<String> origins = new java.util.ArrayList<>(java.util.List.of(corsAllowedOrigins));
         origins.add("https://backend-middleware-habitar-inmobiliaria-production.up.railway.app");
         origins.add("http://localhost:8080");
+        origins.add("http://localhost:8000"); /* Permitir frontend local */
         configuration.setAllowedOriginPatterns(origins);
 
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
