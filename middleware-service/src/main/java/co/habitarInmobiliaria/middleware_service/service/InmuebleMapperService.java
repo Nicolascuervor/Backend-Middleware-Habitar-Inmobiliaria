@@ -11,6 +11,8 @@ import org.springframework.stereotype.Service;
 import org.apache.commons.text.StringEscapeUtils;
 
 import java.util.ArrayList;
+import java.util.Map;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -48,6 +50,39 @@ public class InmuebleMapperService {
                 .url(urlOriginal)
                 .build();
     }
+
+    @SuppressWarnings("unchecked")
+    public VitrinaInmuebleDTO mapHubSpotToVitrina(Map<String, Object> map, String estadoInmueble, String urlOriginal) {
+        if (map == null) return null;
+
+        Object precioRaw = map.get("precio");
+        String precioFormateado = "Consultar";
+        if (precioRaw != null) {
+            try {
+                long precio = Long.parseLong(precioRaw.toString());
+                precioFormateado = "$ " + String.format("%,d", precio).replace(',', '.');
+            } catch (Exception ignored) {}
+        }
+
+        List<String> imagenes = (List<String>) map.get("imagenes");
+        String imagenPrincipal = (imagenes != null && !imagenes.isEmpty()) ? imagenes.get(0) : "https://via.placeholder.com/400x300?text=Sin+Imagen";
+
+        return VitrinaInmuebleDTO.builder()
+                .id((String) map.get("codigoIdentificador"))
+                .titulo((String) map.get("titulo"))
+                .precioFormateado(precioFormateado)
+                .ubicacion((String) map.get("ubicacion"))
+                .habitaciones(map.get("habitaciones") != null ? map.get("habitaciones").toString() : "0")
+                .banos(map.get("banos") != null ? map.get("banos").toString() : "0")
+                .estado(estadoInmueble)
+                .area(map.get("areaConstruida") != null ? map.get("areaConstruida").toString() + " m²" : "N/A")
+                .imagenUrl(imagenPrincipal)
+                .imagenPrincipal(imagenPrincipal)
+                .estadoActualCliente(estadoInmueble)
+                .url(urlOriginal)
+                .build();
+    }
+
 
     /* Mapear Wasi a vitrina con estado */
     public VitrinaInmuebleDTO mapToVitrina(WasiInmuebleDTO source, String estadoInmueble, String urlOriginal) {
@@ -91,7 +126,7 @@ public class InmuebleMapperService {
             }
 
             /* Validar formato del ID */
-            if (idPotencial.matches("\\d+") || idPotencial.startsWith("rec")) {
+            if (idPotencial.matches("\\d+") || idPotencial.startsWith("rec") || idPotencial.matches("[a-zA-Z0-9]{8}")) {
                 return idPotencial;
             } else {
                 log.warn("Formato de ID desconocido en la URL: {}", url);
@@ -185,6 +220,58 @@ public class InmuebleMapperService {
 
         return construirDetalleAirtable(fields, estadoInmueble, precioFormateado,
                 valorAdministracion, internas, externas, galeria);
+    }
+
+    @SuppressWarnings("unchecked")
+    public InmuebleDetalleDTO mapHubSpotToDetalle(Map<String, Object> map, String estadoInmueble) {
+        if (map == null) return null;
+
+        Object precioRaw = map.get("precio");
+        String precioFormateado = "Consultar";
+        if (precioRaw != null) {
+            try {
+                long precio = Long.parseLong(precioRaw.toString());
+                precioFormateado = "$ " + String.format("%,d", precio).replace(',', '.');
+            } catch (Exception ignored) {}
+        }
+
+        Object adminRaw = map.get("valorAdministracion");
+        String valorAdministracion = "N/A";
+        if (adminRaw != null) {
+            try {
+                long admin = Long.parseLong(adminRaw.toString());
+                valorAdministracion = "$ " + String.format("%,d", admin).replace(',', '.');
+            } catch (Exception ignored) {}
+        }
+
+        List<String> internas = map.get("caracteristicasInternas") != null ? (List<String>) map.get("caracteristicasInternas") : new ArrayList<>();
+        List<String> externas = map.get("caracteristicasExternas") != null ? (List<String>) map.get("caracteristicasExternas") : new ArrayList<>();
+        List<String> galeria = map.get("imagenes") != null ? (List<String>) map.get("imagenes") : new ArrayList<>();
+
+        return InmuebleDetalleDTO.builder()
+                .titulo((String) map.get("titulo"))
+                .tipoNegocio((String) map.get("tipoNegocio"))
+                .precioFormateado(precioFormateado)
+                .valorAdministracion(valorAdministracion)
+                .estadoActualCliente(estadoInmueble)
+                .ubicacion((String) map.get("ubicacion"))
+                .zona(map.get("zona") != null ? map.get("zona").toString() : "N/A")
+                .direccion(map.get("direccion") != null ? map.get("direccion").toString() : "A solicitud")
+                .estrato(map.get("estrato") != null ? map.get("estrato").toString() : "N/A")
+                .tipoInmueble(map.get("tipoInmueble") != null ? map.get("tipoInmueble").toString() : "Inmueble")
+                .areaConstruida(map.get("areaConstruida") != null ? map.get("areaConstruida").toString() + " m²" : "N/A")
+                .areaTerreno(map.get("areaTerreno") != null ? map.get("areaTerreno").toString() + " m²" : "N/A")
+                .areaPrivada(map.get("areaPrivada") != null ? map.get("areaPrivada").toString() + " m²" : "N/A")
+                .habitaciones(map.get("habitaciones") != null ? map.get("habitaciones").toString() : "0")
+                .banos(map.get("banos") != null ? map.get("banos").toString() : "0")
+                .estacionamiento(map.get("estacionamiento") != null ? map.get("estacionamiento").toString() : "0")
+                .piso(map.get("piso") != null ? map.get("piso").toString() : "N/A")
+                .estadoFisico(map.get("estadoFisico") != null ? map.get("estadoFisico").toString() : "N/A")
+                .anioConstruccion(map.get("anioConstruccion") != null ? map.get("anioConstruccion").toString() : "N/A")
+                .caracteristicasInternas(internas)
+                .caracteristicasExternas(externas)
+                .galeriasImagenes(galeria)
+                .build();
     }
 
     private String limpiarDescripcion(String observations) {

@@ -33,6 +33,7 @@ public class OrquestadorService {
     private final InmuebleMapperService mapperService;
     private final AirtableClient airtableClient;
     private final ObjectMapper objectMapper;
+    private final InmueblePrivadoService inmueblePrivadoService;
 
     @Value("${airtable.token}")
     private String airtableToken;
@@ -210,13 +211,32 @@ public class OrquestadorService {
             com.fasterxml.jackson.databind.JsonNode airtableRecord =
                     airtableClient.obtenerRegistro(tokenFormateado, tableName, inmuebleId);
             return mapperService.mapAirtableToDetalle(airtableRecord, estadoActual);
-        } else {
+        } else if (inmuebleId.matches("^[a-zA-Z0-9]{8}$") && !inmuebleId.matches("^\\d+$")) {
+            log.info("Enrutando detalle a HubSpot para ID: {}", inmuebleId);
+            Map<String, Object> map = inmueblePrivadoService.obtenerInmueblePorCodigo(inmuebleId);
+            if (map == null) throw new RecursoNoEncontradoException("Inmueble privado no encontrado en HubSpot");
+            return mapperService.mapHubSpotToDetalle(map, estadoActual);
+        } else if (inmuebleId.matches("^\\d+$")) {
             log.info("Enrutando detalle a Wasi para ID: {}", inmuebleId);
-            WasiInmuebleDTO inmuebleRaw = wasiClient.obtenerInmueblePorId(inmuebleId);
-            if (inmuebleRaw == null)
+            try {
+                WasiInmuebleDTO inmuebleRaw = wasiClient.obtenerInmueblePorId(inmuebleId);
+                if (inmuebleRaw != null) {
+                    return mapperService.mapToDetalle(inmuebleRaw, estadoActual);
+                }
+            } catch (Exception e) {
+                if (inmuebleId.length() == 8) {
+                    log.info("Fallo en Wasi, intentando como Inmueble Privado HubSpot (ID 100% numérico): {}", inmuebleId);
+                    try {
+                        Map<String, Object> map = inmueblePrivadoService.obtenerInmueblePorCodigo(inmuebleId);
+                        if (map != null) return mapperService.mapHubSpotToDetalle(map, estadoActual);
+                    } catch (Exception ex) {
+                        throw new RecursoNoEncontradoException("El inmueble con ID " + inmuebleId + " no existe.");
+                    }
+                }
                 throw new RecursoNoEncontradoException("El inmueble con ID " + inmuebleId + " no existe en Wasi.");
-            return mapperService.mapToDetalle(inmuebleRaw, estadoActual);
+            }
         }
+        throw new IllegalArgumentException("ID de inmueble no soportado: " + inmuebleId);
     }
 
     // ─── asignarInmuebleAutomaticamente ─────────────────────────────────────
@@ -296,11 +316,27 @@ public class OrquestadorService {
                 if (airtableRecord != null && airtableRecord.has("fields")) {
                     return mapperService.mapAirtableToVitrina(airtableRecord, estadoFinal, url);
                 }
-            } else {
+            } else if (inmuebleId.matches("^[a-zA-Z0-9]{8}$") && !inmuebleId.matches("^\\d+$")) {
+                log.info("Vitrina - Consultando HubSpot para ID: {}", inmuebleId);
+                Map<String, Object> map = inmueblePrivadoService.obtenerInmueblePorCodigo(inmuebleId);
+                if (map != null) {
+                    return mapperService.mapHubSpotToVitrina(map, estadoFinal, url);
+                }
+            } else if (inmuebleId.matches("^\\d+$")) {
                 log.info("Vitrina - Consultando Wasi para ID: {}", inmuebleId);
-                WasiInmuebleDTO inmuebleRaw = wasiClient.obtenerInmueblePorId(inmuebleId);
-                if (inmuebleRaw != null) {
-                    return mapperService.mapToVitrina(inmuebleRaw, estadoFinal, url);
+                try {
+                    WasiInmuebleDTO inmuebleRaw = wasiClient.obtenerInmueblePorId(inmuebleId);
+                    if (inmuebleRaw != null) {
+                        return mapperService.mapToVitrina(inmuebleRaw, estadoFinal, url);
+                    }
+                } catch (Exception e) {
+                    if (inmuebleId.length() == 8) {
+                        log.info("Vitrina - Fallo en Wasi, consultando HubSpot para ID 100% numérico: {}", inmuebleId);
+                        try {
+                            Map<String, Object> map = inmueblePrivadoService.obtenerInmueblePorCodigo(inmuebleId);
+                            if (map != null) return mapperService.mapHubSpotToVitrina(map, estadoFinal, url);
+                        } catch (Exception ignored) {}
+                    }
                 }
             }
         } catch (Exception e) {
