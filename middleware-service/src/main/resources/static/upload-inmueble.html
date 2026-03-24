@@ -235,6 +235,7 @@
     const params = new URLSearchParams(window.location.search);
     contactId = params.get('contactId');
     tipoListingDestino = params.get('tipo') || 'alquiler';
+    const jwtToken = params.get('token');
 
     // ─── Construir checkboxes ─────────────────────────────────────────────────
     function buildCheckboxes(containerId, items) {
@@ -324,6 +325,8 @@
         const totalBytes = archivosSeleccionados.reduce((sum, f) => sum + f.size, 0);
         if (totalBytes > MAX_SIZE_BYTES) return mostrarError('El total de imágenes supera 5 MB.');
 
+        if (!jwtToken) return mostrarError('Token de autenticación no disponible. Recarga la página.');
+
         setLoading(true);
 
         try {
@@ -367,9 +370,12 @@
             formData.append('datos', JSON.stringify(dto));
             archivosSeleccionados.forEach(file => formData.append('imagenes', file));
 
-            // Enviar al backend
+            // Enviar al backend con Authorization
             const res = await fetch(API_URL, {
                 method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer ' + jwtToken,
+                },
                 body: formData,
             });
 
