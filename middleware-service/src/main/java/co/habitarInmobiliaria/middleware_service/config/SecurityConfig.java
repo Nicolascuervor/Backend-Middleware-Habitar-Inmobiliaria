@@ -40,6 +40,7 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                         /* Rutas públicas */
                         .requestMatchers("/api/v1/vitrina/**").permitAll()
+                        .requestMatchers("/static/**", "/*.html").permitAll()
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/api/v1/inmuebles-privados/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
