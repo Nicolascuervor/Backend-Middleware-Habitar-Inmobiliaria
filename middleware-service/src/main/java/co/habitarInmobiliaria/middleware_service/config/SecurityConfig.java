@@ -59,8 +59,11 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        /* Orígenes inyectados desde application-{perfil}.properties */
-        configuration.setAllowedOriginPatterns(List.of(corsAllowedOrigins));
+        /* Orígenes inyectados + permitir el propio dominio (Railway y local) para que el HTML embebido funcione */
+        java.util.List<String> origins = new java.util.ArrayList<>(java.util.List.of(corsAllowedOrigins));
+        origins.add("https://backend-middleware-habitar-inmobiliaria-production.up.railway.app");
+        origins.add("http://localhost:8080");
+        configuration.setAllowedOriginPatterns(origins);
 
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "bypass-tunnel-reminder"));
