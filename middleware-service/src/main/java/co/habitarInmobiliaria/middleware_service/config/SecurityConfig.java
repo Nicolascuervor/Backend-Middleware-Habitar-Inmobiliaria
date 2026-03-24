@@ -41,6 +41,7 @@ public class SecurityConfig {
                         /* Rutas públicas */
                         .requestMatchers("/api/v1/vitrina/**").permitAll()
                         .requestMatchers("/api/v1/auth/**").permitAll()
+                        .requestMatchers("/static/**", "/*.html").permitAll()
                         .requestMatchers("/api/v1/inmuebles-privados").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                         /* Rutas protegidas */

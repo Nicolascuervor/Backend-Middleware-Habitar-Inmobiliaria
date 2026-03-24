@@ -13,5 +13,5 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class ImagenController {
 
-    
+
 }
