@@ -603,12 +603,15 @@
                 mostrarExito(`✅ Inmueble creado. URL: ${urlFinal}`);
 
                 // Esperar 2 segundos y notificar a la Card
-                const payload = JSON.stringify({
+                const payload = {
                     type: 'INMUEBLE_CREADO',
                     url: urlFinal,
                     tipo: tipoListingDestino,
                     codigoIdentificador,
-                });
+                };
+
+                console.log('📤 Enviando payload como objeto:', payload);
+
 
                 console.log('📤 Enviando postMessage:', payload);
                 console.log('📍 window.parent:', window.parent);
