@@ -600,12 +600,20 @@
                 const urlFinal = `https://buscador.habitarinmobiliaria.co/${codigoIdentificador}`;
 
                 // Notificar a la Card via postMessage
-                window.parent.postMessage({
-                    type: 'INMUEBLE_CREADO',
-                    url: urlFinal,
-                    tipo: tipoListingDestino,
-                    codigoIdentificador,
-                }, '*');
+                mostrarExito(`✅ Inmueble creado. URL: ${urlFinal}`);
+
+                // Esperar 2 segundos y notificar a la Card
+                setTimeout(() => {
+                    window.parent.postMessage(
+                        JSON.stringify({
+                            type: 'INMUEBLE_CREADO',
+                            url: urlFinal,
+                            tipo: tipoListingDestino,
+                            codigoIdentificador,
+                        }),
+                        '*'
+                    );
+                }, 2000);
 
                 mostrarExito(`✅ Inmueble creado. URL: ${urlFinal}`);
 
