@@ -603,17 +603,19 @@
                 mostrarExito(`✅ Inmueble creado. URL: ${urlFinal}`);
 
                 // Esperar 2 segundos y notificar a la Card
+                const payload = JSON.stringify({
+                    type: 'INMUEBLE_CREADO',
+                    url: urlFinal,
+                    tipo: tipoListingDestino,
+                    codigoIdentificador,
+                });
+
+                // Intentar todos los posibles destinos del mensaje
                 setTimeout(() => {
-                    window.parent.postMessage(
-                        JSON.stringify({
-                            type: 'INMUEBLE_CREADO',
-                            url: urlFinal,
-                            tipo: tipoListingDestino,
-                            codigoIdentificador,
-                        }),
-                        '*'
-                    );
-                }, 2000);
+                    try { window.parent.postMessage(payload, '*'); } catch(e) {}
+                    try { window.top.postMessage(payload, '*'); } catch(e) {}
+                    try { window.postMessage(payload, '*'); } catch(e) {}
+                }, 1500);
 
                 mostrarExito(`✅ Inmueble creado. URL: ${urlFinal}`);
 
