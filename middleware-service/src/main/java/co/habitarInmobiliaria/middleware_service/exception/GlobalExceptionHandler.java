@@ -40,6 +40,13 @@ public class GlobalExceptionHandler {
         return construirRespuesta(status, "Error en comunicación con servicio externo", request);
     }
 
+    /* Maneja errores de nuestra lógica interna hacia APIs externas */
+    @ExceptionHandler(ErrorExternoException.class)
+    public ResponseEntity<ErrorResponseDTO> handleErrorExternoException(ErrorExternoException ex, HttpServletRequest request) {
+        log.error("Error Externo Controlado: {}", ex.getMessage());
+        return construirRespuesta(HttpStatus.BAD_GATEWAY, ex.getMessage(), request);
+    }
+
     /* Catch-all para errores no previstos */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponseDTO> handleGeneralException(Exception ex, HttpServletRequest request) {
