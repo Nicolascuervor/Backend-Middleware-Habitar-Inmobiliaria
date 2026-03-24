@@ -5,6 +5,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Crear Inmueble Privado</title>
+    <script src="https://static.hsappstatic.net/content-cwv-embed/ex/content-cwv-embed-combined.js"></script>
     <style>
         * {
             box-sizing: border-box;
@@ -619,16 +620,38 @@
                 console.log('📍 ¿mismo origen?', window.parent === window);
 
                 setTimeout(() => {
-                    try { 
-                        window.parent.postMessage(payload, '*');
-                        console.log('✅ window.parent.postMessage enviado');
-                    } catch(e) { console.error('❌ window.parent falló:', e); }
-                    
-                    try { 
-                        window.top.postMessage(payload, '*');
-                        console.log('✅ window.top.postMessage enviado');
-                    } catch(e) { console.error('❌ window.top falló:', e); }
-                }, 1500);
+    const payload = {
+        type: 'INMUEBLE_CREADO',
+        url: urlFinal,
+        tipo: tipoListingDestino,
+        codigoIdentificador,
+    };
+
+    console.log('📤 Enviando via HubSpot SDK:', payload);
+
+    // Método 1: SDK de HubSpot
+    if (window.HubSpotConversations?.widget) {
+        window.HubSpotConversations.widget.refresh();
+    }
+
+    // Método 2: postMessage con origen específico de HubSpot
+    const hubspotOrigins = [
+        'https://app.hubspot.com',
+        'https://app.hubspotusercontent.com',
+    ];
+
+    hubspotOrigins.forEach(origin => {
+        try {
+            window.parent.postMessage(payload, origin);
+            console.log(`✅ Enviado a ${origin}`);
+        } catch(e) {
+            console.log(`❌ Falló ${origin}:`, e.message);
+        }
+    });
+
+    // Método 3: wildcard como fallback
+    window.parent.postMessage(payload, '*');
+}, 1500);
 
                 mostrarExito(`✅ Inmueble creado. URL: ${urlFinal}`);
 
