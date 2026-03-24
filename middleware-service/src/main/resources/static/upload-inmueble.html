@@ -610,11 +610,21 @@
                     codigoIdentificador,
                 });
 
-                // Intentar todos los posibles destinos del mensaje
+                console.log('📤 Enviando postMessage:', payload);
+                console.log('📍 window.parent:', window.parent);
+                console.log('📍 window.top:', window.top);
+                console.log('📍 ¿mismo origen?', window.parent === window);
+
                 setTimeout(() => {
-                    try { window.parent.postMessage(payload, '*'); } catch(e) {}
-                    try { window.top.postMessage(payload, '*'); } catch(e) {}
-                    try { window.postMessage(payload, '*'); } catch(e) {}
+                    try { 
+                        window.parent.postMessage(payload, '*');
+                        console.log('✅ window.parent.postMessage enviado');
+                    } catch(e) { console.error('❌ window.parent falló:', e); }
+                    
+                    try { 
+                        window.top.postMessage(payload, '*');
+                        console.log('✅ window.top.postMessage enviado');
+                    } catch(e) { console.error('❌ window.top falló:', e); }
                 }, 1500);
 
                 mostrarExito(`✅ Inmueble creado. URL: ${urlFinal}`);
