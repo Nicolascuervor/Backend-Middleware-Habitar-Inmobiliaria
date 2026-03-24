@@ -619,39 +619,23 @@
                 console.log('📍 window.top:', window.top);
                 console.log('📍 ¿mismo origen?', window.parent === window);
 
-                setTimeout(() => {
-    const payload = {
-        type: 'INMUEBLE_CREADO',
+                // Guardar resultado en Vercel en lugar de postMessage
+await fetch('https://visualizador-api.vercel.app/api/pending', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+        contactId: contactId,
         url: urlFinal,
         tipo: tipoListingDestino,
-        codigoIdentificador,
-    };
+    }),
+});
 
-    console.log('📤 Enviando via HubSpot SDK:', payload);
+console.log('✅ Resultado guardado en Vercel para contactId:', contactId);
+mostrarExito(`✅ Inmueble creado. Cerrando en 3 segundos...`);
 
-    // Método 1: SDK de HubSpot
-    if (window.HubSpotConversations?.widget) {
-        window.HubSpotConversations.widget.refresh();
-    }
-
-    // Método 2: postMessage con origen específico de HubSpot
-    const hubspotOrigins = [
-        'https://app.hubspot.com',
-        'https://app.hubspotusercontent.com',
-    ];
-
-    hubspotOrigins.forEach(origin => {
-        try {
-            window.parent.postMessage(payload, origin);
-            console.log(`✅ Enviado a ${origin}`);
-        } catch(e) {
-            console.log(`❌ Falló ${origin}:`, e.message);
-        }
-    });
-
-    // Método 3: wildcard como fallback
-    window.parent.postMessage(payload, '*');
-}, 1500);
+setTimeout(() => {
+    window.close();
+}, 3000);
 
                 mostrarExito(`✅ Inmueble creado. URL: ${urlFinal}`);
 
