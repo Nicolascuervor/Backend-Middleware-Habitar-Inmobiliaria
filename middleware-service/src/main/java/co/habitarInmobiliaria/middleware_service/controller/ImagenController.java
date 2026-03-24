@@ -13,12 +13,5 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class ImagenController {
 
-    private final SirvService sirvService;
-
-    @PostMapping("/subir")
-    public ResponseEntity<Map<String, String>> subirImagen(@RequestParam("archivo") MultipartFile archivo) {
-        String urlPublica = sirvService.subirImagen(archivo);
-        // Devolvemos un JSON con la URL para que el Frontend la guarde en su estado
-        return ResponseEntity.ok(Collections.singletonMap("url", urlPublica));
-    }
+    
 }
