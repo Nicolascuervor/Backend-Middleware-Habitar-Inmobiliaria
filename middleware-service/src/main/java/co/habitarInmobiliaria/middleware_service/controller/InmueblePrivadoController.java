@@ -2,12 +2,14 @@ package co.habitarinmobiliaria.middleware_service.controller;
 
 import co.habitarinmobiliaria.middleware_service.dtos.CrearInmueblePrivadoDTO;
 import co.habitarinmobiliaria.middleware_service.service.InmueblePrivadoService;
-import jakarta.validation.Valid;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -19,19 +21,34 @@ import java.util.Map;
 public class InmueblePrivadoController {
 
     private final InmueblePrivadoService inmueblePrivadoService;
+    private final ObjectMapper objectMapper;
 
-    @PostMapping
-    public ResponseEntity<Map<String, String>> crearInmueblePrivado(@Valid @RequestBody CrearInmueblePrivadoDTO dto) {
-        log.info("Recibida petición para crear inmueble privado: {}", dto.getTitulo());
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<Map<String, String>> crearInmueblePrivado(
+            @RequestPart("datos") String datosJson,
+            @RequestPart("imagenes") MultipartFile[] imagenes) {
 
-        String airtableId = inmueblePrivadoService.crearInmueble(dto);
+        try {
+            /* Deserializar JSON de metadatos */
+            CrearInmueblePrivadoDTO dto = objectMapper.readValue(datosJson, CrearInmueblePrivadoDTO.class);
+            log.info("Recibida petición para crear inmueble privado: {}", dto.getTitulo());
 
-        /* Construir respuesta estructurada */
-        Map<String, String> respuesta = new HashMap<>();
-        respuesta.put("mensaje", "Inmueble privado creado exitosamente");
-        respuesta.put("idAirtable", airtableId);
+            /* Crear inmueble en HubSpot */
+            Map<String, String> resultado = inmueblePrivadoService.crearInmueble(dto, imagenes);
 
-        /* 201 CREATED */
-        return ResponseEntity.status(HttpStatus.CREATED).body(respuesta);
+            /* Construir respuesta */
+            Map<String, String> respuesta = new HashMap<>();
+            respuesta.put("mensaje", "Inmueble privado creado exitosamente");
+            respuesta.put("folderId", resultado.get("folderId"));
+            respuesta.put("codigoIdentificador", resultado.get("codigoIdentificador"));
+
+            return ResponseEntity.status(HttpStatus.CREATED).body(respuesta);
+
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            log.error("Error al parsear JSON de metadatos", e);
+            Map<String, String> error = new HashMap<>();
+            error.put("mensaje", "Error en el formato JSON de los metadatos");
+            return ResponseEntity.badRequest().body(error);
+        }
     }
 }
