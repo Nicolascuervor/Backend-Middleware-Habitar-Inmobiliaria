@@ -598,46 +598,30 @@
 
                 const resultado = await res.json();
                 const codigoIdentificador = resultado.codigoIdentificador;
-                const urlFinal = `https://buscador.habitarinmobiliaria.co/${codigoIdentificador}`;
 
-                // Notificar a la Card via postMessage
-                mostrarExito(`✅ Inmueble creado. URL: ${urlFinal}`);
+                /* Construir URL según tipo de negocio (venta o alquiler) */
+                const esVenta = tipoNegocio === 'Venta';
+                const segmento = esVenta ? 'venta' : 'alquiler';
+                const urlFinal = `https://buscador.habitarinmobiliaria.co/${segmento}/${codigoIdentificador}`;
 
-                // Esperar 2 segundos y notificar a la Card
-                const payload = {
-                    type: 'INMUEBLE_CREADO',
-                    url: urlFinal,
-                    tipo: tipoListingDestino,
-                    codigoIdentificador,
-                };
-
-                console.log('📤 Enviando payload como objeto:', payload);
-
-
-                console.log('📤 Enviando postMessage:', payload);
-                console.log('📍 window.parent:', window.parent);
-                console.log('📍 window.top:', window.top);
-                console.log('📍 ¿mismo origen?', window.parent === window);
-
-                
-                // Determinar la propiedad según el tipo
-                const propiedad = tipoListingDestino === 'venta' 
-                    ? 'listings_venta_data' 
+                /* Determinar la propiedad de HubSpot según el tipo de negocio */
+                const propiedad = esVenta
+                    ? 'listings_venta_data'
                     : 'listings_alquiler_data';
 
-                // Obtener listings actuales
+                /* Obtener listings actuales */
                 const getRes = await fetch(
                     `https://visualizador-api.vercel.app/api/get?contactId=${contactId}`
                 );
                 const getData = await getRes.json();
                 const listingsActuales = JSON.parse(
-                    tipoListingDestino === 'venta' ? (getData.venta || '[]') : (getData.alquiler || '[]')
+                    esVenta ? (getData.venta || '[]') : (getData.alquiler || '[]')
                 );
 
-                // Agregar el nuevo listing
+                /* Agregar el nuevo listing */
                 listingsActuales.push({ url: urlFinal, estado: 'SIN_REVISAR' });
 
-                // Guardar en HubSpot via Vercel
+                /* Guardar en HubSpot via Vercel */
                 await fetch('https://visualizador-api.vercel.app/api/update', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -648,7 +632,10 @@
                     }),
                 });
 
-                mostrarExito(`✅ Inmueble creado y agregado al listing. URL: ${urlFinal}`);
+                mostrarExito(`✅ Inmueble creado (${segmento}). La ventana se cerrará en 2 s…`);
+
+                /* Cerrar ventana automáticamente tras 2 segundos */
+                setTimeout(() => { window.close(); }, 2000);
 
             } catch (err) {
                 mostrarError(err.message || 'Error inesperado al crear el inmueble.');
