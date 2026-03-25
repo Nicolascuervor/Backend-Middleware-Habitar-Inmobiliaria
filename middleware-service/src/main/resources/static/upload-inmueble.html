@@ -425,7 +425,8 @@
     <script>
         // ─── Constantes ──────────────────────────────────────────────────────────
         const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
-        const API_URL = 'https://backend-middleware-habitar-inmobiliaria-production.up.railway.app/api/v1/inmuebles-privados';
+        const API_BASE = 'https://backend-middleware-habitar-inmobiliaria-production.up.railway.app';
+        const API_URL = `${API_BASE}/api/v1/inmuebles-privados`;
 
         const CARACT_INTERNAS = [
             'Aire Acondicionado', 'Balcón', 'Biblioteca/estudio', 'Bodega privada',
@@ -447,12 +448,10 @@
         // ─── Estado ──────────────────────────────────────────────────────────────
         let archivosSeleccionados = [];
         let contactId = null;
-        let tipoListingDestino = null;
 
         // ─── Leer parámetros del iframe ───────────────────────────────────────────
         const params = new URLSearchParams(window.location.search);
         contactId = params.get('contactId');
-        tipoListingDestino = params.get('tipo') || 'alquiler';
 
         // ─── Construir checkboxes ─────────────────────────────────────────────────
         function buildCheckboxes(containerId, items) {
@@ -604,38 +603,27 @@
                 const segmento = esVenta ? 'venta' : 'alquiler';
                 const urlFinal = `https://buscador.habitarinmobiliaria.co/${segmento}/${codigoIdentificador}`;
 
-                /* Determinar la propiedad de HubSpot según el tipo de negocio */
-                const propiedad = esVenta
-                    ? 'listings_venta_data'
-                    : 'listings_alquiler_data';
-
-                /* Obtener listings actuales */
-                const getRes = await fetch(
-                    `https://visualizador-api.vercel.app/api/get?contactId=${contactId}`
+                /* Asignar a la vitrina del contacto via backend */
+                const asignarRes = await fetch(
+                    `${API_BASE}/api/v1/vitrina/${contactId}/asignar`,
+                    {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            url: urlFinal,
+                            tipo_inmueble: esVenta ? 'VENTA' : 'ALQUILER',
+                        }),
+                    }
                 );
-                const getData = await getRes.json();
-                const listingsActuales = JSON.parse(
-                    esVenta ? (getData.venta || '[]') : (getData.alquiler || '[]')
-                );
 
-                /* Agregar el nuevo listing */
-                listingsActuales.push({ url: urlFinal, estado: 'SIN_REVISAR' });
+                if (!asignarRes.ok) {
+                    const errText = await asignarRes.text().catch(() => '');
+                    console.error('Error al asignar:', asignarRes.status, errText);
+                    throw new Error(errText || `Error ${asignarRes.status} al asignar el inmueble a la vitrina.`);
+                }
 
-                /* Guardar en HubSpot via Vercel */
-                await fetch('https://visualizador-api.vercel.app/api/update', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contactId: contactId,
-                        listing: propiedad,
-                        value: JSON.stringify(listingsActuales),
-                    }),
-                });
-
-                mostrarExito(`✅ Inmueble creado (${segmento}). La ventana se cerrará en 2 s…`);
-
-                /* Cerrar ventana automáticamente tras 2 segundos */
-                setTimeout(() => { window.close(); }, 2000);
+                /* Mostrar pantalla de confirmación reemplazando el body */
+                mostrarPantallaExito(urlFinal, segmento, codigoIdentificador);
 
             } catch (err) {
                 mostrarError(err.message || 'Error inesperado al crear el inmueble.');
@@ -667,6 +655,27 @@
         function ocultarMensajes() {
             document.getElementById('errorBox').style.display = 'none';
             document.getElementById('successBox').style.display = 'none';
+        }
+
+        /* Pantalla de confirmación que reemplaza todo el body */
+        function mostrarPantallaExito(url, segmento, codigo) {
+            document.body.innerHTML = `
+                <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;
+                            min-height:100vh;background:#f0fdf4;padding:24px;text-align:center;font-family:Inter,sans-serif;">
+                    <div style="font-size:3rem;margin-bottom:12px;">✅</div>
+                    <h2 style="color:#16a34a;font-size:1.2rem;margin-bottom:8px;">Inmueble creado exitosamente</h2>
+                    <p style="color:#374151;font-size:0.85rem;margin-bottom:4px;">Tipo: <strong>${segmento.toUpperCase()}</strong> — Código: <strong>${codigo}</strong></p>
+                    <p style="color:#6b7280;font-size:0.75rem;margin-bottom:16px;">La URL fue asignada automáticamente a la vitrina del contacto.</p>
+                    <div style="background:#fff;border:1.5px solid #DDE3ED;border-radius:8px;padding:10px 16px;
+                                display:flex;align-items:center;gap:8px;max-width:100%;overflow:hidden;">
+                        <span id="urlCreada" style="font-size:0.8rem;color:#3A6CB0;word-break:break-all;">${url}</span>
+                        <button onclick="navigator.clipboard.writeText('${url}');this.textContent='✓ Copiada';"
+                                style="flex-shrink:0;padding:6px 12px;background:#3A6CB0;color:#fff;border:none;
+                                       border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer;">Copiar</button>
+                    </div>
+                    <p style="color:#9ca3af;font-size:0.7rem;margin-top:16px;">Puedes cerrar esta pestaña.</p>
+                </div>
+            `;
         }
     </script>
 </body>
