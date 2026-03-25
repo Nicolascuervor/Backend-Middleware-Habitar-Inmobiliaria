@@ -619,25 +619,36 @@
                 console.log('📍 window.top:', window.top);
                 console.log('📍 ¿mismo origen?', window.parent === window);
 
-                // Guardar resultado en Vercel en lugar de postMessage
-await fetch('https://visualizador-api.vercel.app/api/pending', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-        contactId: contactId,
-        url: urlFinal,
-        tipo: tipoListingDestino,
-    }),
-});
+                
+                // Determinar la propiedad según el tipo
+                const propiedad = tipoListingDestino === 'venta' 
+                    ? 'listings_venta_data' 
+                    : 'listings_alquiler_data';
 
-console.log('✅ Resultado guardado en Vercel para contactId:', contactId);
-mostrarExito(`✅ Inmueble creado. Cerrando en 3 segundos...`);
+                // Obtener listings actuales
+                const getRes = await fetch(
+                    `https://visualizador-api.vercel.app/api/get?contactId=${contactId}`
+                );
+                const getData = await getRes.json();
+                const listingsActuales = JSON.parse(
+                    tipoListingDestino === 'venta' ? (getData.venta || '[]') : (getData.alquiler || '[]')
+                );
 
-setTimeout(() => {
-    window.close();
-}, 3000);
+                // Agregar el nuevo listing
+                listingsActuales.push({ url: urlFinal, estado: 'SIN_REVISAR' });
 
-                mostrarExito(`✅ Inmueble creado. URL: ${urlFinal}`);
+                // Guardar en HubSpot via Vercel
+                await fetch('https://visualizador-api.vercel.app/api/update', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contactId: contactId,
+                        listing: propiedad,
+                        value: JSON.stringify(listingsActuales),
+                    }),
+                });
+
+                mostrarExito(`✅ Inmueble creado y agregado al listing. URL: ${urlFinal}`);
 
             } catch (err) {
                 mostrarError(err.message || 'Error inesperado al crear el inmueble.');
