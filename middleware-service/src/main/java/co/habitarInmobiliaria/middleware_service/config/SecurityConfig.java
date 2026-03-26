@@ -64,6 +64,7 @@ public class SecurityConfig {
         origins.add("https://backend-middleware-habitar-inmobiliaria-production.up.railway.app");
         origins.add("http://localhost:8080");
         origins.add("http://localhost:8000"); /* Permitir frontend local */
+        origins.add("https://ulcerous-teresia-subterete.ngrok-free.dev");
         configuration.setAllowedOriginPatterns(origins);
 
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
