@@ -12,8 +12,6 @@ import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.Duration;
-
 @RestController
 @RequestMapping("/api/v1/vitrina")
 @RequiredArgsConstructor
@@ -35,7 +33,7 @@ public class VitrinaController {
         }
 
         return ResponseEntity.ok()
-                .cacheControl(CacheControl.maxAge(Duration.ofMinutes(3)).mustRevalidate())
+                .cacheControl(CacheControl.noCache())
                 .body(vitrinaResponse);
     }
 
