@@ -203,6 +203,7 @@ public class OrquestadorService {
 
     // ─── procesarCambioEstado ────────────────────────────────────────────────
 
+    @CacheEvict(value = "vitrina", key = "#usuarioToken")
     public void procesarCambioEstado(String usuarioToken, String urlRecibida, String accion) {
         log.info("Procesando cambio de estado: {} para URL: {}",
                 LogSanitizer.sanitizar(accion), LogSanitizer.sanitizar(urlRecibida));
