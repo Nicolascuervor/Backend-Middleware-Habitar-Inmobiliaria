@@ -14,6 +14,8 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+
 import java.util.List;
 import java.util.Map;
 
@@ -35,7 +37,11 @@ public class HubSpotFilesService {
     private String parentFolderId;
 
     public HubSpotFilesService(ObjectMapper objectMapper) {
-        this.restTemplate = new RestTemplate();
+        /* RestTemplate con timeouts explícitos para operaciones de archivos */
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(5_000);   // 5 segundos
+        factory.setReadTimeout(15_000);     // 15 segundos (archivos pueden tardar más)
+        this.restTemplate = new RestTemplate(factory);
         this.objectMapper = objectMapper;
     }
 

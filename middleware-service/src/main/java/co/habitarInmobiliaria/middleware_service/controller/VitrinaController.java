@@ -8,8 +8,11 @@ import co.habitarinmobiliaria.middleware_service.util.LogSanitizer;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.Duration;
 
 @RestController
 @RequestMapping("/api/v1/vitrina")
@@ -31,7 +34,9 @@ public class VitrinaController {
             log.info("Vitrina vacía para el token: {}", LogSanitizer.sanitizar(usuarioToken));
         }
 
-        return ResponseEntity.ok(vitrinaResponse);
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.maxAge(Duration.ofMinutes(3)).mustRevalidate())
+                .body(vitrinaResponse);
     }
 
     @GetMapping("/{usuarioToken}/inmuebles/{inmuebleId}")

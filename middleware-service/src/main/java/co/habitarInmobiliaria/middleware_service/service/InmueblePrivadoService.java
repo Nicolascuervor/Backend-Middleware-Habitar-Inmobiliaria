@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -19,7 +20,16 @@ public class InmueblePrivadoService {
 
     private final HubSpotFilesService hubSpotFilesService;
     private final ObjectMapper objectMapper;
-    private final RestTemplate restTemplate = new RestTemplate();
+
+    /* RestTemplate con timeouts explícitos — evita bloqueo indefinido */
+    private final RestTemplate restTemplate = crearRestTemplateConTimeouts();
+
+    private static RestTemplate crearRestTemplateConTimeouts() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(5_000);  // 5 segundos
+        factory.setReadTimeout(10_000);    // 10 segundos
+        return new RestTemplate(factory);
+    }
 
     /* Extensiones y tipos MIME permitidos para imágenes */
     private static final Set<String> EXTENSIONES_PERMITIDAS = Set.of(".jpg", ".jpeg", ".png", ".webp");

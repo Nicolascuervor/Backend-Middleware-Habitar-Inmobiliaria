@@ -14,16 +14,20 @@ import co.habitarinmobiliaria.middleware_service.exception.RecursoNoEncontradoEx
 import co.habitarinmobiliaria.middleware_service.util.LogSanitizer;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executor;
 import java.util.stream.Stream;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class OrquestadorService {
 
@@ -34,6 +38,8 @@ public class OrquestadorService {
     private final AirtableClient airtableClient;
     private final ObjectMapper objectMapper;
     private final InmueblePrivadoService inmueblePrivadoService;
+    private final AsesorCacheService asesorCacheService;
+    private final Executor executor;
 
     @Value("${airtable.token}")
     private String airtableToken;
@@ -76,6 +82,28 @@ public class OrquestadorService {
     @Value("${asesor.js.tel}") private String telJS;
     @Value("${asesor.js.meet}") private String meetJS;
 
+    // Constructor explícito para inyectar el Executor cualificado
+    public OrquestadorService(
+            List<EstadoInmuebleStrategy> estrategias,
+            HubSpotClient hubSpotClient,
+            WasiClient wasiClient,
+            InmuebleMapperService mapperService,
+            AirtableClient airtableClient,
+            ObjectMapper objectMapper,
+            InmueblePrivadoService inmueblePrivadoService,
+            AsesorCacheService asesorCacheService,
+            @Qualifier("vitrinaExecutor") Executor executor) {
+        this.estrategias = estrategias;
+        this.hubSpotClient = hubSpotClient;
+        this.wasiClient = wasiClient;
+        this.mapperService = mapperService;
+        this.airtableClient = airtableClient;
+        this.objectMapper = objectMapper;
+        this.inmueblePrivadoService = inmueblePrivadoService;
+        this.asesorCacheService = asesorCacheService;
+        this.executor = executor;
+    }
+
     // ─── Propiedades a solicitar a HubSpot ──────────────────────────────────
     private static final String PROPS_VITRINA =
             HubSpotConstants.FIRSTNAME + "," +
@@ -104,8 +132,9 @@ public class OrquestadorService {
         }
     }
 
-    // ─── procesarVitrina ─────────────────────────────────────────────────────
+    // ─── procesarVitrina (OPTIMIZADO: paralelo + cacheable) ─────────────────
 
+    @Cacheable(value = "vitrina", key = "#usuarioToken")
     public VitrinaResponseDTO procesarVitrina(String usuarioToken) {
         log.info("Iniciando orquestación completa para usuario: {}", usuarioToken);
 
@@ -116,6 +145,7 @@ public class OrquestadorService {
             return VitrinaResponseDTO.builder()
                     .asesor(construirInfoAsesor(null))
                     .inmuebles(new ArrayList<>())
+                    .alertas(new ArrayList<>())
                     .build();
         }
 
@@ -124,17 +154,50 @@ public class OrquestadorService {
         List<ListingItemDTO> alquiler = parsearListings(dinamicas.get(HubSpotConstants.LISTINGS_ALQUILER_DATA));
         List<ListingItemDTO> venta    = parsearListings(dinamicas.get(HubSpotConstants.LISTINGS_VENTA_DATA));
 
-        // Combinar ambas listas filtrando URLs vacías
-        List<VitrinaInmuebleDTO> vitrinaFinal = Stream.concat(alquiler.stream(), venta.stream())
+        // Filtrar listings con URL válida
+        List<ListingItemDTO> listingsActivos = Stream.concat(alquiler.stream(), venta.stream())
                 .filter(item -> item.getUrl() != null && !item.getUrl().isBlank())
-                .map(item -> consultarInmuebleIndividual(item.getUrl(), item.getEstado()))
+                .toList();
+
+        // Colector thread-safe para alertas de degradación parcial
+        List<String> alertas = new CopyOnWriteArrayList<>();
+
+        // ══════════════════════════════════════════════════════════════════
+        // OPTIMIZACIÓN CRÍTICA: Ejecución PARALELA de consultas externas
+        // ANTES: N llamadas seriales × 3-5s = 30-60s TTFB
+        // DESPUÉS: N llamadas paralelas = max(3-5s) = 3-8s TTFB
+        // ══════════════════════════════════════════════════════════════════
+        List<CompletableFuture<VitrinaInmuebleDTO>> futures = listingsActivos.stream()
+                .map(item -> CompletableFuture.supplyAsync(
+                        () -> consultarInmuebleIndividual(item.getUrl(), item.getEstado()),
+                        executor
+                ).exceptionally(ex -> {
+                    log.warn("Fallo al consultar inmueble {}: {}", item.getUrl(), ex.getMessage());
+                    alertas.add("No se pudo obtener datos del inmueble: " + item.getUrl());
+                    return null;
+                }))
+                .toList();
+
+        // Obtener info del asesor EN PARALELO con las consultas de inmuebles
+        String ownerId = contacto.getProperties().getOwnerId();
+        CompletableFuture<VitrinaResponseDTO.AsesorInfo> asesorFuture =
+                CompletableFuture.supplyAsync(() -> construirInfoAsesor(ownerId), executor);
+
+        // Esperar a que TODAS las consultas de inmuebles terminen
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+
+        List<VitrinaInmuebleDTO> vitrinaFinal = futures.stream()
+                .map(CompletableFuture::join)
                 .filter(Objects::nonNull)
                 .toList();
 
-        String ownerId = contacto.getProperties().getOwnerId();
+        // El asesor también debería estar listo a esta altura
+        VitrinaResponseDTO.AsesorInfo asesorInfo = asesorFuture.join();
+
         return VitrinaResponseDTO.builder()
-                .asesor(construirInfoAsesor(ownerId))
+                .asesor(asesorInfo)
                 .inmuebles(vitrinaFinal)
+                .alertas(alertas.isEmpty() ? null : new ArrayList<>(alertas))
                 .build();
     }
 
@@ -241,6 +304,7 @@ public class OrquestadorService {
 
     // ─── asignarInmuebleAutomaticamente ─────────────────────────────────────
 
+    @CacheEvict(value = "vitrina", key = "#usuarioToken")
     public void asignarInmuebleAutomaticamente(String usuarioToken, String urlWasi, String tipoInmueble) {
         log.info("Intento de asignar inmueble [{}] para usuario: {}", tipoInmueble, usuarioToken);
 
@@ -271,6 +335,7 @@ public class OrquestadorService {
 
     // ─── desasignarInmueble ──────────────────────────────────────────────────
 
+    @CacheEvict(value = "vitrina", key = "#usuarioToken")
     public void desasignarInmueble(String usuarioToken, String urlRecibida) {
         log.info("Intento de desasignar inmueble para usuario: {}", usuarioToken);
 
@@ -361,7 +426,8 @@ public class OrquestadorService {
         }
 
         try {
-            HubSpotOwnerDTO owner = hubSpotClient.obtenerAsesor(ownerId);
+            // Usa AsesorCacheService para cachear la llamada a HubSpot
+            HubSpotOwnerDTO owner = asesorCacheService.obtenerAsesor(ownerId);
             String urlFoto, telefonoContacto, urlMeeting;
 
             if (ownerId.equals(idN)) { urlFoto = fotoN; telefonoContacto = telN; urlMeeting = meetN; }
