@@ -43,6 +43,7 @@ public class SecurityConfig {
                         .requestMatchers("/static/**", "/*.html").permitAll()
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/api/v1/inmuebles-privados", "/api/v1/inmuebles-privados/**").permitAll()
+                        .requestMatchers("/api/v1/historico-inmuebles", "/api/v1/historico-inmuebles/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                         /* Rutas protegidas */
                         .anyRequest().authenticated())
