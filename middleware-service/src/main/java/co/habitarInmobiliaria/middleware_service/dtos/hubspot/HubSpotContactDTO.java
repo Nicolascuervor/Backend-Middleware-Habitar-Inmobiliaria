@@ -1,0 +1,37 @@
+package co.habitarinmobiliaria.middleware_service.dtos.hubspot;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Data;
+
+@Data
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class HubSpotContactDTO {
+
+    private String id;
+    private PropertiesDTO properties;
+
+    @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class PropertiesDTO {
+
+        private String firstname;
+        private String lastname;
+
+        @JsonProperty("hs_avatar_filemanager_key")
+        private String avatarKey;
+
+        @JsonProperty("hubspot_owner_id")
+        private String ownerId;
+
+
+        @com.fasterxml.jackson.annotation.JsonIgnore
+        private java.util.Map<String, String> propiedadesDinamicas = new java.util.HashMap<>();
+
+        @com.fasterxml.jackson.annotation.JsonAnySetter
+        public void setPropiedadDinamica(String key, String value) {
+            propiedadesDinamicas.put(key, value);
+
+        }
+    }
+}

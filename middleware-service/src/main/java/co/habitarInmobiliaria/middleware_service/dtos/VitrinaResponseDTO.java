@@ -9,6 +9,7 @@ import java.util.List;
 public class VitrinaResponseDTO {
     private AsesorInfo asesor;
     private List<VitrinaInmuebleDTO> inmuebles;
+    private List<String> alertas; // Mensajes de degradación parcial (ej: "Portal Wasi no disponible")
 
     @Data
     @Builder

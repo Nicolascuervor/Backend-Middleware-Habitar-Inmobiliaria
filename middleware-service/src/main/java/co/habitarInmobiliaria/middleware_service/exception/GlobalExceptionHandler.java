@@ -19,43 +19,45 @@ import java.util.UUID;
 @Slf4j
 public class GlobalExceptionHandler {
 
-    /**
-     * Maneja nuestras excepciones personalizadas de "No Encontrado".
-     */
+    /* Maneja recurso no encontrado */
     @ExceptionHandler(RecursoNoEncontradoException.class)
-    public ResponseEntity<ErrorResponseDTO> handleResourceNotFound(RecursoNoEncontradoException ex, HttpServletRequest request) {
+    public ResponseEntity<ErrorResponseDTO> handleResourceNotFound(RecursoNoEncontradoException ex,
+            HttpServletRequest request) {
         return construirRespuesta(HttpStatus.NOT_FOUND, ex.getMessage(), request);
     }
 
-    /**
-     * Maneja errores específicos de Feign (cuando Wasi/HubSpot responden con error).
-     * Esto evita que el frontend reciba un "500 Internal Server Error" genérico.
-     */
+    /* Maneja errores de Feign con APIs externas */
     @ExceptionHandler(FeignException.class)
     public ResponseEntity<ErrorResponseDTO> handleFeignException(FeignException ex, HttpServletRequest request) {
-        // Extraemos el status real que devolvió la API externa (ej. 401, 404, 500)
         HttpStatus status = HttpStatus.resolve(ex.status());
-        if (status == null) status = HttpStatus.BAD_GATEWAY;
+        if (status == null)
+            status = HttpStatus.BAD_GATEWAY;
 
-        String mensaje = "Error en comunicación con servicio externo: " + ex.getMessage();
+        /* Log interno completo para debugging */
         log.error("Error Feign detectado: status={} body={}", ex.status(), ex.contentUTF8());
 
-        return construirRespuesta(status, mensaje, request);
+        /* Mensaje genérico al cliente — sin detalles internos */
+        return construirRespuesta(status, "Error en comunicación con servicio externo", request);
     }
 
-    /**
-     * "Catch-all": Maneja cualquier otro error no previsto (NullPointer, etc.)
-     * Es el último recurso para no romper la app.
-     */
+    /* Maneja errores de nuestra lógica interna hacia APIs externas */
+    @ExceptionHandler(ErrorExternoException.class)
+    public ResponseEntity<ErrorResponseDTO> handleErrorExternoException(ErrorExternoException ex, HttpServletRequest request) {
+        log.error("Error Externo Controlado: {}", ex.getMessage());
+        return construirRespuesta(HttpStatus.BAD_GATEWAY, ex.getMessage(), request);
+    }
+
+    /* Catch-all para errores no previstos */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponseDTO> handleGeneralException(Exception ex, HttpServletRequest request) {
         log.error("Error inesperado no controlado: ", ex);
-        return construirRespuesta(HttpStatus.INTERNAL_SERVER_ERROR, "Ocurrió un error interno inesperado. Contacte soporte.", request);
+        return construirRespuesta(HttpStatus.INTERNAL_SERVER_ERROR,
+                "Ocurrió un error interno inesperado. Contacte soporte.", request);
     }
 
-    // Método privado para construir el DTO de forma uniforme
-    private ResponseEntity<ErrorResponseDTO> construirRespuesta(HttpStatus status, String mensaje, HttpServletRequest request) {
-        // Generamos un Trace ID si no existe uno (Para facilitar soporte)
+    /* Construir respuesta de error uniforme */
+    private ResponseEntity<ErrorResponseDTO> construirRespuesta(HttpStatus status, String mensaje,
+            HttpServletRequest request) {
         String traceId = MDC.get("traceId");
         if (traceId == null || traceId.isEmpty()) {
             traceId = UUID.randomUUID().toString();

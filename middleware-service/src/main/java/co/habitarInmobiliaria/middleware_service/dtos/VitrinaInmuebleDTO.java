@@ -4,10 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Data;
 
-/**
- * Objeto optimizado para el Frontend de Adulto Mayor.
- * Sin ruido, solo datos listos para renderizar.
- */
+/* DTO optimizado para la tarjeta de inmueble en el frontend */
 @Data
 @Builder
 @Schema(description = "Objeto optimizado para la tarjeta de inmueble en el Frontend")
@@ -33,4 +30,21 @@ public class VitrinaInmuebleDTO {
 
     @Schema(description = "Indica si debe resaltarse en la UI (botones grandes)", example = "false")
     private boolean esDestacado;
+
+    @Schema(description = "Estado de revisión del inmueble por parte del cliente", example = "APROBADO")
+    private String estado;
+
+    private String urlReferencia;
+
+    private String habitaciones;
+
+    private String banos;
+
+    private String area;
+
+    private String imagenPrincipal;
+
+    private String estadoActualCliente;
+
+    private String url;
 }

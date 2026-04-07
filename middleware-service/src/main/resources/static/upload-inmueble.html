@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Crear Inmueble Privado</title>
+    <script src="https://static.hsappstatic.net/content-cwv-embed/ex/content-cwv-embed-combined.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f9fafb;
+            color: #1a1a2e;
+            font-size: 14px;
+        }
+
+        .container {
+            padding: 20px;
+            max-width: 100%;
+        }
+
+        h2 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+            color: #3A6CB0;
+        }
+
+        .section-title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #6b7280;
+            margin: 16px 0 8px;
+            letter-spacing: 0.05em;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-bottom: 10px;
+        }
+
+        label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #374151;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        input,
+        select,
+        textarea {
+            padding: 8px 10px;
+            border: 1.5px solid #DDE3ED;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-family: inherit;
+            background: #fff;
+            color: #1a1a2e;
+            transition: border-color 0.2s;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #3A6CB0;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .char-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+        }
+
+        .char-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+
+        .char-label input[type="checkbox"] {
+            width: 14px;
+            height: 14px;
+            cursor: pointer;
+        }
+
+        .image-area {
+            border: 2px dashed #DDE3ED;
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.2s;
+            margin-bottom: 10px;
+        }
+
+        .image-area:hover {
+            border-color: #3A6CB0;
+        }
+
+        .image-area input[type="file"] {
+            display: none;
+        }
+
+        .image-area label {
+            cursor: pointer;
+            color: #3A6CB0;
+            font-weight: 600;
+            font-size: 0.875rem;
+            text-transform: none;
+        }
+
+        .img-preview-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .img-thumb {
+            position: relative;
+            width: 70px;
+            height: 70px;
+        }
+
+        .img-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 6px;
+            border: 1.5px solid #DDE3ED;
+        }
+
+        .img-thumb button {
+            position: absolute;
+            top: -6px;
+            right: -6px;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            border: none;
+            background: #dc2626;
+            color: white;
+            font-size: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .size-info {
+            font-size: 0.75rem;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+
+        .size-bar {
+            height: 4px;
+            background: #e5e7eb;
+            border-radius: 2px;
+            margin-top: 4px;
+        }
+
+        .size-bar-fill {
+            height: 100%;
+            background: #3A6CB0;
+            border-radius: 2px;
+            transition: width 0.3s;
+        }
+
+        .size-bar-fill.warning {
+            background: #f59e0b;
+        }
+
+        .size-bar-fill.danger {
+            background: #dc2626;
+        }
+
+        .btn-save {
+            width: 100%;
+            padding: 12px;
+            background: #3A6CB0;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 16px;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-save:hover:not(:disabled) {
+            background: #2a54a0;
+        }
+
+        .btn-save:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2.5px solid rgba(255, 255, 255, 0.4);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .error-box {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 6px;
+            padding: 10px 12px;
+            color: #dc2626;
+            font-size: 0.85rem;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .success-box {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            border-radius: 6px;
+            padding: 10px 12px;
+            color: #16a34a;
+            font-size: 0.85rem;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .required {
+            color: #dc2626;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h2>🏠 Crear Inmueble Privado</h2>
+
+        <!-- Datos básicos -->
+        <div class="section-title">Datos básicos</div>
+        <div class="field">
+            <label>Título <span class="required">*</span></label>
+            <input type="text" id="titulo" placeholder="Ej. Casa campestre con piscina en Armenia" maxlength="100" />
+        </div>
+        <div class="grid-2">
+            <div class="field">
+                <label>Tipo de negocio <span class="required">*</span></label>
+                <select id="tipoNegocio">
+                    <option value="">— Selecciona —</option>
+                    <option value="Venta">Venta</option>
+                    <option value="Alquiler">Alquiler</option>
+                </select>
+            </div>
+            <div class="field">
+                <label>Tipo de inmueble <span class="required">*</span></label>
+                <select id="tipoInmueble">
+                    <option value="">— Selecciona —</option>
+                    <option>Casa</option>
+                    <option>Apartamento</option>
+                    <option>Local Comercial</option>
+                    <option>Oficina</option>
+                    <option>Bodega</option>
+                    <option>Lote</option>
+                    <option>Finca</option>
+                    <option>Casa Campestre</option>
+                </select>
+            </div>
+        </div>
+        <div class="grid-2">
+            <div class="field">
+                <label>Precio (COP) <span class="required">*</span></label>
+                <input type="number" id="precio" placeholder="Ej. 450000000" min="0" />
+            </div>
+            <div class="field">
+                <label>Valor Administración</label>
+                <input type="number" id="valorAdmin" placeholder="Ej. 200000" min="0" />
+            </div>
+        </div>
+
+        <!-- Ubicación -->
+        <div class="section-title">Ubicación</div>
+        <div class="field">
+            <label>Ubicación <span class="required">*</span></label>
+            <input type="text" id="ubicacion" placeholder="Ej. Colombia, Quindío, Armenia" />
+        </div>
+        <div class="grid-2">
+            <div class="field">
+                <label>Zona</label>
+                <input type="text" id="zona" placeholder="Ej. Norte" />
+            </div>
+            <div class="field">
+                <label>Dirección</label>
+                <input type="text" id="direccion" placeholder="Ej. Calle 15 # 10-20" />
+            </div>
+        </div>
+        <div class="grid-2">
+            <div class="field">
+                <label>Estrato</label>
+                <select id="estrato">
+                    <option value="">—</option>
+                    <option>0</option>
+                    <option>1</option>
+                    <option>2</option>
+                    <option>3</option>
+                    <option>4</option>
+                    <option>5</option>
+                    <option>6</option>
+                </select>
+            </div>
+            <div class="field">
+                <label>Piso</label>
+                <input type="number" id="piso" placeholder="0" min="0" />
+            </div>
+        </div>
+
+        <!-- Detalles físicos -->
+        <div class="section-title">Detalles físicos</div>
+        <div class="grid-2">
+            <div class="field">
+                <label>Habitaciones <span class="required">*</span></label>
+                <input type="number" id="habitaciones" placeholder="0" min="0" />
+            </div>
+            <div class="field">
+                <label>Baños <span class="required">*</span></label>
+                <input type="number" id="banos" placeholder="0" min="0" />
+            </div>
+        </div>
+        <div class="grid-2">
+            <div class="field">
+                <label>Estacionamientos</label>
+                <input type="number" id="estacionamiento" placeholder="0" min="0" />
+            </div>
+            <div class="field">
+                <label>Área construida (m²)</label>
+                <input type="number" id="areaConstruida" placeholder="0" min="0" />
+            </div>
+        </div>
+        <div class="grid-2">
+            <div class="field">
+                <label>Área privada (m²)</label>
+                <input type="number" id="areaPrivada" placeholder="0" min="0" />
+            </div>
+            <div class="field">
+                <label>Área terreno (m²)</label>
+                <input type="number" id="areaTerreno" placeholder="0" min="0" />
+            </div>
+        </div>
+
+        <!-- Descripción -->
+        <div class="section-title">Descripción</div>
+        <div class="field">
+            <label>Descripción <span class="required">*</span></label>
+            <textarea id="descripcion" placeholder="Descripción del inmueble..."></textarea>
+        </div>
+
+        <!-- Características internas -->
+        <div class="section-title">Características internas</div>
+        <div class="char-grid" id="char-internas"></div>
+
+        <!-- Características externas -->
+        <div class="section-title">Características externas</div>
+        <div class="char-grid" id="char-externas"></div>
+
+        <!-- Imágenes -->
+        <div class="section-title">Imágenes (máx. 5 MB en total)</div>
+        <div class="image-area" onclick="document.getElementById('fileInput').click()">
+            <input type="file" id="fileInput" accept=".jpg,.jpeg,.png,.webp" multiple />
+            <label>📎 Seleccionar imágenes</label>
+            <p style="font-size:0.75rem;color:#6b7280;margin-top:4px;">JPG, PNG, WEBP — máx. 5 MB total</p>
+        </div>
+        <div class="size-info">Tamaño total: <span id="totalSizeText">0 KB</span> / 5 MB</div>
+        <div class="size-bar">
+            <div class="size-bar-fill" id="sizeBarFill" style="width:0%"></div>
+        </div>
+        <div class="img-preview-grid" id="imgPreviewGrid"></div>
+
+        <!-- Errores / éxito -->
+        <div class="error-box" id="errorBox"></div>
+        <div class="success-box" id="successBox"></div>
+
+        <!-- Botón -->
+        <button class="btn-save" id="btnSave" onclick="guardar()">
+            <span id="btnText">Guardar Inmueble</span>
+            <div class="spinner" id="btnSpinner" style="display:none"></div>
+        </button>
+    </div>
+
+    <script>
+        // ─── Constantes ──────────────────────────────────────────────────────────
+        const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
+        const API_BASE = 'https://backend-middleware-habitar-inmobiliaria-production.up.railway.app';
+        const API_URL = `${API_BASE}/api/v1/inmuebles-privados`;
+
+        const CARACT_INTERNAS = [
+            'Aire Acondicionado', 'Balcón', 'Biblioteca/estudio', 'Bodega privada',
+            'Chimenea', 'Cocina equipada', 'Cocina integral', 'Cuarto de servicio',
+            'Depósito', 'Jacuzzi', 'Lavaplatos', 'Zona de lavandería', 'Amoblado',
+            'Unifamiliar', 'Bañera', 'Ascensor interno', 'Hospedaje turismo',
+            'Suelo de cerámica / mármol', 'Closets',
+        ];
+        const CARACT_EXTERNAS = [
+            'Acceso pavimentado', 'Área social', 'Ascensor', 'Barbacoa / parrilla / quincho',
+            'Cerca a jardines y colegios', 'Cerca a restaurantes', 'Cerca a tiendas de barrio',
+            'Cerca zona urbana', 'Centro médico', 'Centros comerciales', 'Colegios / universidades',
+            'Garaje', 'Parques cercanos', 'Piscina', 'Portería / recepción', 'Salón comunal',
+            'Shut de basura', 'Sobre vía principal', 'Terraza', 'Trans. público cercano',
+            'Urbanización cerrada', 'Vigilancia', 'Vivienda unifamiliar', 'Zona comercial',
+            'Zona infantil', 'Zona residencial', 'Zonas verdes', 'Áreas turísticas',
+        ];
+
+        // ─── Estado ──────────────────────────────────────────────────────────────
+        let archivosSeleccionados = [];
+        let contactId = null;
+
+        // ─── Leer parámetros del iframe ───────────────────────────────────────────
+        const params = new URLSearchParams(window.location.search);
+        contactId = params.get('contactId');
+
+        // ─── Construir checkboxes ─────────────────────────────────────────────────
+        function buildCheckboxes(containerId, items) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = items.map((item, i) => `
+      <label class="char-label">
+        <input type="checkbox" value="${item}" id="${containerId}-${i}" />
+        <span>${item}</span>
+      </label>
+    `).join('');
+        }
+
+        function getChecked(containerId) {
+            return [...document.querySelectorAll(`#${containerId} input:checked`)].map(cb => cb.value);
+        }
+
+        buildCheckboxes('char-internas', CARACT_INTERNAS);
+        buildCheckboxes('char-externas', CARACT_EXTERNAS);
+
+        // ─── Manejo de imágenes ───────────────────────────────────────────────────
+        document.getElementById('fileInput').addEventListener('change', (e) => {
+            const nuevos = [...e.target.files];
+            archivosSeleccionados = [...archivosSeleccionados, ...nuevos];
+            e.target.value = '';
+            actualizarPreviews();
+        });
+
+        function actualizarPreviews() {
+            const grid = document.getElementById('imgPreviewGrid');
+            grid.innerHTML = '';
+            let totalBytes = 0;
+
+            archivosSeleccionados.forEach((file, i) => {
+                totalBytes += file.size;
+                const url = URL.createObjectURL(file);
+                const div = document.createElement('div');
+                div.className = 'img-thumb';
+                div.innerHTML = `
+        <img src="${url}" alt="${file.name}" />
+        <button onclick="eliminarImagen(${i})">✕</button>
+      `;
+                grid.appendChild(div);
+            });
+
+            // Actualizar barra de tamaño
+            const pct = Math.min((totalBytes / MAX_SIZE_BYTES) * 100, 100);
+            const fill = document.getElementById('sizeBarFill');
+            fill.style.width = pct + '%';
+            fill.className = 'size-bar-fill' + (pct > 90 ? ' danger' : pct > 70 ? ' warning' : '');
+
+            const kb = (totalBytes / 1024).toFixed(0);
+            const mb = (totalBytes / 1024 / 1024).toFixed(2);
+            document.getElementById('totalSizeText').textContent =
+                totalBytes > 1024 * 1024 ? `${mb} MB` : `${kb} KB`;
+        }
+
+        function eliminarImagen(i) {
+            archivosSeleccionados.splice(i, 1);
+            actualizarPreviews();
+        }
+
+        // ─── Guardar ──────────────────────────────────────────────────────────────
+        async function guardar() {
+            ocultarMensajes();
+
+            // Validaciones
+            const titulo = document.getElementById('titulo').value.trim();
+            const tipoNegocio = document.getElementById('tipoNegocio').value;
+            const tipoInmueble = document.getElementById('tipoInmueble').value;
+            const precio = document.getElementById('precio').value;
+            const ubicacion = document.getElementById('ubicacion').value.trim();
+            const habitaciones = document.getElementById('habitaciones').value;
+            const banos = document.getElementById('banos').value;
+            const descripcion = document.getElementById('descripcion').value.trim();
+
+            if (!titulo || titulo.length < 10) return mostrarError('El título debe tener mínimo 10 caracteres.');
+            if (!tipoNegocio) return mostrarError('Selecciona el tipo de negocio.');
+            if (!tipoInmueble) return mostrarError('Selecciona el tipo de inmueble.');
+            if (!precio) return mostrarError('El precio es obligatorio.');
+            if (!ubicacion) return mostrarError('La ubicación es obligatoria.');
+            if (habitaciones === '') return mostrarError('Las habitaciones son obligatorias.');
+            if (banos === '') return mostrarError('Los baños son obligatorios.');
+            if (!descripcion) return mostrarError('La descripción es obligatoria.');
+            if (archivosSeleccionados.length === 0) return mostrarError('Debes subir al menos una imagen.');
+
+            // Validar tamaño total
+            const totalBytes = archivosSeleccionados.reduce((sum, f) => sum + f.size, 0);
+            if (totalBytes > MAX_SIZE_BYTES) return mostrarError('El total de imágenes supera 5 MB.');
+
+            setLoading(true);
+
+            try {
+                // Construir DTO
+                const dto = {
+                    titulo,
+                    tipoNegocio,
+                    tipoInmueble,
+                    precio: parseInt(precio),
+                    ubicacion,
+                    habitaciones: parseInt(habitaciones),
+                    banos: parseInt(banos),
+                    descripcion,
+                    idDueno: 'asesor-hubspot-card',
+                    idContacto: contactId || 'unknown',
+                    caracteristicasInternas: getChecked('char-internas'),
+                    caracteristicasExternas: getChecked('char-externas'),
+                };
+
+                // Opcionales
+                const valorAdmin = document.getElementById('valorAdmin').value;
+                const zona = document.getElementById('zona').value.trim();
+                const direccion = document.getElementById('direccion').value.trim();
+                const estrato = document.getElementById('estrato').value;
+                const piso = document.getElementById('piso').value;
+                const areaConstruida = document.getElementById('areaConstruida').value;
+                const areaPrivada = document.getElementById('areaPrivada').value;
+                const areaTerreno = document.getElementById('areaTerreno').value;
+
+                if (valorAdmin) dto.valorAdministracion = parseInt(valorAdmin);
+                if (zona) dto.zona = zona;
+                if (direccion) dto.direccion = direccion;
+                if (estrato) dto.estrato = parseInt(estrato);
+                if (piso) dto.piso = parseInt(piso);
+                if (areaConstruida) dto.areaConstruida = parseFloat(areaConstruida);
+                if (areaPrivada) dto.areaPrivada = parseFloat(areaPrivada);
+                if (areaTerreno) dto.areaTerreno = parseFloat(areaTerreno);
+
+                // Construir FormData
+                const formData = new FormData();
+                formData.append('datos', JSON.stringify(dto));
+                archivosSeleccionados.forEach(file => formData.append('imagenes', file));
+
+                // Enviar al backend
+                const res = await fetch(API_URL, {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.mensaje || `Error ${res.status}`);
+                }
+
+                const resultado = await res.json();
+                const codigoIdentificador = resultado.codigoIdentificador;
+
+                /* Construir URL según tipo de negocio (venta o alquiler) */
+                const esVenta = tipoNegocio === 'Venta';
+                const segmento = esVenta ? 'venta' : 'alquiler';
+                const urlFinal = `https://buscador.habitarinmobiliaria.co/${segmento}/${codigoIdentificador}`;
+
+                /* Asignar a la vitrina del contacto via backend */
+                const asignarRes = await fetch(
+                    `${API_BASE}/api/v1/vitrina/${contactId}/asignar`,
+                    {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            url: urlFinal,
+                            tipo_inmueble: esVenta ? 'VENTA' : 'ALQUILER',
+                        }),
+                    }
+                );
+
+                if (!asignarRes.ok) {
+                    const errText = await asignarRes.text().catch(() => '');
+                    console.error('Error al asignar:', asignarRes.status, errText);
+                    throw new Error(errText || `Error ${asignarRes.status} al asignar el inmueble a la vitrina.`);
+                }
+
+                /* Mostrar pantalla de confirmación reemplazando el body */
+                mostrarPantallaExito(urlFinal, segmento, codigoIdentificador);
+
+            } catch (err) {
+                mostrarError(err.message || 'Error inesperado al crear el inmueble.');
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        // ─── UI helpers ───────────────────────────────────────────────────────────
+        function setLoading(v) {
+            document.getElementById('btnSave').disabled = v;
+            document.getElementById('btnText').style.display = v ? 'none' : 'inline';
+            document.getElementById('btnSpinner').style.display = v ? 'block' : 'none';
+        }
+
+        function mostrarError(msg) {
+            const el = document.getElementById('errorBox');
+            el.textContent = msg;
+            el.style.display = 'block';
+            el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function mostrarExito(msg) {
+            const el = document.getElementById('successBox');
+            el.textContent = msg;
+            el.style.display = 'block';
+        }
+
+        function ocultarMensajes() {
+            document.getElementById('errorBox').style.display = 'none';
+            document.getElementById('successBox').style.display = 'none';
+        }
+
+        /* Pantalla de confirmación que reemplaza todo el body */
+        function mostrarPantallaExito(url, segmento, codigo) {
+            document.body.innerHTML = `
+                <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;
+                            min-height:100vh;background:#f0fdf4;padding:24px;text-align:center;font-family:Inter,sans-serif;">
+                    <div style="font-size:3rem;margin-bottom:12px;">✅</div>
+                    <h2 style="color:#16a34a;font-size:1.2rem;margin-bottom:8px;">Inmueble creado exitosamente</h2>
+                    <p style="color:#374151;font-size:0.85rem;margin-bottom:4px;">Tipo: <strong>${segmento.toUpperCase()}</strong> — Código: <strong>${codigo}</strong></p>
+                    <p style="color:#6b7280;font-size:0.75rem;margin-bottom:16px;">La URL fue asignada automáticamente a la vitrina del contacto.</p>
+                    <div style="background:#fff;border:1.5px solid #DDE3ED;border-radius:8px;padding:10px 16px;
+                                display:flex;align-items:center;gap:8px;max-width:100%;overflow:hidden;">
+                        <span id="urlCreada" style="font-size:0.8rem;color:#3A6CB0;word-break:break-all;">${url}</span>
+                        <button onclick="navigator.clipboard.writeText('${url}');this.textContent='✓ Copiada';"
+                                style="flex-shrink:0;padding:6px 12px;background:#3A6CB0;color:#fff;border:none;
+                                       border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer;">Copiar</button>
+                    </div>
+                    <p style="color:#9ca3af;font-size:0.7rem;margin-top:16px;">Puedes cerrar esta pestaña.</p>
+                </div>
+            `;
+        }
+    </script>
+</body>
+
+</html>
