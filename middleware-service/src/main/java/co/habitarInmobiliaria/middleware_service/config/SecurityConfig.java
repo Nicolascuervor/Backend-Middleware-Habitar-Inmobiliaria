@@ -63,6 +63,7 @@ public class SecurityConfig {
         /* Orígenes inyectados + permitir el propio dominio (Railway y local) para que el HTML embebido funcione */
         java.util.List<String> origins = new java.util.ArrayList<>(java.util.List.of(corsAllowedOrigins));
         origins.add("https://backend-middleware-habitar-inmobiliaria-production.up.railway.app");
+        origins.add("https://ulcerous-teresia-subterete.ngrok-free.dev");
         origins.add("http://localhost:8080");
         origins.add("http://localhost:8000"); /* Permitir frontend local */
         origins.add("https://ulcerous-teresia-subterete.ngrok-free.dev");
