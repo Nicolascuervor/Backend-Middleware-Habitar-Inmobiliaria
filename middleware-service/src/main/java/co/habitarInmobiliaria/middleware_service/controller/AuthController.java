@@ -12,9 +12,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
 public class AuthController {
-
     private final AuthService authService;
-
     @PostMapping("/login")
     @Operation(summary = "Login de Asesor", description = "Valida credenciales contra Airtable y retorna un JWT")
     public ResponseEntity<AuthResponseDTO> login(@jakarta.validation.Valid @RequestBody LoginRequestDTO request) {

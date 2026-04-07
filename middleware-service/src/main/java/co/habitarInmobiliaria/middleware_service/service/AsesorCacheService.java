@@ -12,8 +12,6 @@ import org.springframework.stereotype.Service;
  * Se separa de OrquestadorService para evitar el problema de
  * auto-invocación de proxies Spring (@Cacheable no funciona
  * cuando un método de la misma clase llama a otro cacheado).
- *
- * TTL del cache: 30 minutos (configurado en CacheConfig).
  */
 @Service
 @RequiredArgsConstructor
@@ -21,7 +19,6 @@ import org.springframework.stereotype.Service;
 public class AsesorCacheService {
 
     private final HubSpotClient hubSpotClient;
-
     @Cacheable(value = "asesor-info", key = "#ownerId")
     public HubSpotOwnerDTO obtenerAsesor(String ownerId) {
         log.info("Cache MISS — Consultando HubSpot para asesor: {}", ownerId);
