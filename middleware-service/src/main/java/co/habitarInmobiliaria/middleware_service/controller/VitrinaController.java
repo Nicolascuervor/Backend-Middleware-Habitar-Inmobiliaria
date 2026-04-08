@@ -5,12 +5,20 @@ import co.habitarinmobiliaria.middleware_service.dtos.InmuebleDetalleDTO;
 import co.habitarinmobiliaria.middleware_service.dtos.VitrinaResponseDTO;
 import co.habitarinmobiliaria.middleware_service.service.OrquestadorService;
 import co.habitarinmobiliaria.middleware_service.util.LogSanitizer;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.CacheControl;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.Base64;
 
 @RestController
 @RequestMapping("/api/v1/vitrina")
@@ -19,20 +27,31 @@ import org.springframework.web.bind.annotation.*;
 public class VitrinaController {
 
     private final OrquestadorService orquestadorService;
+    private final ObjectMapper objectMapper;
 
     /* Cargar vitrina personalizada del usuario */
     @GetMapping("/{usuarioToken}")
     @Operation(summary = "Obtener vitrina completa", description = "Retorna el perfil del asesor y la lista de inmuebles.")
-    public ResponseEntity<VitrinaResponseDTO> obtenerVitrina(@PathVariable String usuarioToken) {
+    public ResponseEntity<VitrinaResponseDTO> obtenerVitrina(@PathVariable String usuarioToken, HttpServletRequest request) {
         log.info("Solicitud REST recibida para token: {}", LogSanitizer.sanitizar(usuarioToken));
 
         VitrinaResponseDTO vitrinaResponse = orquestadorService.procesarVitrina(usuarioToken);
+        String etag = generarEtag(vitrinaResponse);
+        String ifNoneMatch = request.getHeader(HttpHeaders.IF_NONE_MATCH);
+
+        if (etag.equals(ifNoneMatch)) {
+            return ResponseEntity.status(HttpStatus.NOT_MODIFIED)
+                    .eTag(etag)
+                    .cacheControl(CacheControl.noCache())
+                    .build();
+        }
 
         if (vitrinaResponse.getInmuebles().isEmpty()) {
             log.info("Vitrina vacía para el token: {}", LogSanitizer.sanitizar(usuarioToken));
         }
 
         return ResponseEntity.ok()
+                .eTag(etag)
                 .cacheControl(CacheControl.noCache())
                 .body(vitrinaResponse);
     }
@@ -51,6 +70,18 @@ public class VitrinaController {
     @GetMapping("/health")
     public ResponseEntity<String> healthCheck() {
         return ResponseEntity.ok("Middleware Inmobiliario Operativo - V1.0");
+    }
+
+    private String generarEtag(VitrinaResponseDTO vitrinaResponse) {
+        try {
+            String payload = objectMapper.writeValueAsString(vitrinaResponse);
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(payload.getBytes(StandardCharsets.UTF_8));
+            return "\"" + Base64.getUrlEncoder().withoutPadding().encodeToString(hash) + "\"";
+        } catch (Exception ex) {
+            log.warn("No fue posible generar ETag de vitrina: {}", ex.getMessage());
+            return "\"" + System.currentTimeMillis() + "\"";
+        }
     }
 
     @PatchMapping("/{usuarioToken}/asignar")

@@ -134,7 +134,7 @@ public class OrquestadorService {
 
     // ─── procesarVitrina (OPTIMIZADO: paralelo + cacheable) ─────────────────
 
-    @Cacheable(value = "vitrina", key = "#usuarioToken")
+    @Cacheable(value = "vitrina", key = "#usuarioToken", sync = true)
     public VitrinaResponseDTO procesarVitrina(String usuarioToken) {
         log.info("Iniciando orquestación completa para usuario: {}", usuarioToken);
 

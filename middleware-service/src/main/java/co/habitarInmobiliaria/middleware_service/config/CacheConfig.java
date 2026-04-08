@@ -5,6 +5,7 @@ import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.cache.concurrent.ConcurrentMapCache;
 import org.springframework.cache.support.SimpleCacheManager;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -26,6 +27,9 @@ import java.util.List;
 @EnableScheduling
 @Slf4j
 public class CacheConfig {
+
+    @Autowired
+    private CacheManager cacheManager;
 
     @Bean
     public CacheManager cacheManager() {
@@ -59,7 +63,7 @@ public class CacheConfig {
     }
 
     private void evictCache(String cacheName) {
-        var cache = cacheManager().getCache(cacheName);
+        var cache = cacheManager.getCache(cacheName);
         if (cache != null) {
             cache.clear();
         }
