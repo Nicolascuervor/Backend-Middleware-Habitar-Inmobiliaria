@@ -82,6 +82,11 @@
             border-color: #3A6CB0;
         }
 
+        /* Montos COP: solo dígitos visibles con separador de miles */
+        input.input-cop-miles {
+            font-variant-numeric: tabular-nums;
+        }
+
         textarea {
             resize: vertical;
             min-height: 80px;
@@ -306,11 +311,15 @@
         <div class="grid-2">
             <div class="field">
                 <label>Precio (COP) <span class="required">*</span></label>
-                <input type="number" id="precio" placeholder="Ej. 450000000" min="0" />
+                <input type="text" class="input-cop-miles" id="precio" inputmode="numeric" autocomplete="off"
+                    placeholder="Ej. 450,000,000" aria-describedby="hint-precio" />
+                <span id="hint-precio" class="size-info">Se separan miles automáticamente (ej. 100,000).</span>
             </div>
             <div class="field">
                 <label>Valor Administración</label>
-                <input type="number" id="valorAdmin" placeholder="Ej. 200000" min="0" />
+                <input type="text" class="input-cop-miles" id="valorAdmin" inputmode="numeric" autocomplete="off"
+                    placeholder="Ej. 200,000" aria-describedby="hint-admin" />
+                <span id="hint-admin" class="size-info">Opcional. Mismo formato de miles.</span>
             </div>
         </div>
 
@@ -471,6 +480,63 @@
         buildCheckboxes('char-internas', CARACT_INTERNAS);
         buildCheckboxes('char-externas', CARACT_EXTERNAS);
 
+        // ─── Formato miles COP (Precio / Administración) ───────────────────────────
+        function soloDigitos(str) {
+            return (str || '').replace(/\D/g, '');
+        }
+
+        function formatearMilesCOP(digitos) {
+            if (!digitos) return '';
+            if (digitos.length > 15) digitos = digitos.slice(0, 15);
+            const n = parseInt(digitos, 10);
+            if (!Number.isFinite(n)) return '';
+            return n.toLocaleString('en-US');
+        }
+
+        function digitosAntesDeIndice(str, index) {
+            return soloDigitos((str || '').slice(0, index)).length;
+        }
+
+        function indiceTrasNDigitos(formateado, n) {
+            if (n <= 0) return 0;
+            let c = 0;
+            for (let i = 0; i < formateado.length; i++) {
+                if (/\d/.test(formateado[i])) {
+                    c++;
+                    if (c === n) return i + 1;
+                }
+            }
+            return formateado.length;
+        }
+
+        function aplicarFormatoMilesInput(el) {
+            const raw = el.value;
+            const start = el.selectionStart;
+            const end = el.selectionEnd;
+            const countInicio = digitosAntesDeIndice(raw, start);
+            const countFin = digitosAntesDeIndice(raw, end);
+            const nuevo = formatearMilesCOP(soloDigitos(raw));
+            el.value = nuevo;
+            try {
+                el.setSelectionRange(
+                    indiceTrasNDigitos(nuevo, countInicio),
+                    indiceTrasNDigitos(nuevo, countFin)
+                );
+            } catch (_) { /* algunos navegadores si el input no tiene foco */ }
+        }
+
+        document.getElementById('precio').addEventListener('input', function () {
+            aplicarFormatoMilesInput(this);
+        });
+        document.getElementById('valorAdmin').addEventListener('input', function () {
+            aplicarFormatoMilesInput(this);
+        });
+        ['precio', 'valorAdmin'].forEach((id) => {
+            document.getElementById(id).addEventListener('blur', function () {
+                if (soloDigitos(this.value)) aplicarFormatoMilesInput(this);
+            });
+        });
+
         // ─── Manejo de imágenes ───────────────────────────────────────────────────
         document.getElementById('fileInput').addEventListener('change', (e) => {
             const nuevos = [...e.target.files];
@@ -521,7 +587,8 @@
             const titulo = document.getElementById('titulo').value.trim();
             const tipoNegocio = document.getElementById('tipoNegocio').value;
             const tipoInmueble = document.getElementById('tipoInmueble').value;
-            const precio = document.getElementById('precio').value;
+            const precioDigits = soloDigitos(document.getElementById('precio').value);
+            const precioNum = precioDigits ? parseInt(precioDigits, 10) : NaN;
             const ubicacion = document.getElementById('ubicacion').value.trim();
             const habitaciones = document.getElementById('habitaciones').value;
             const banos = document.getElementById('banos').value;
@@ -530,7 +597,9 @@
             if (!titulo || titulo.length < 10) return mostrarError('El título debe tener mínimo 10 caracteres.');
             if (!tipoNegocio) return mostrarError('Selecciona el tipo de negocio.');
             if (!tipoInmueble) return mostrarError('Selecciona el tipo de inmueble.');
-            if (!precio) return mostrarError('El precio es obligatorio.');
+            if (!precioDigits || !Number.isFinite(precioNum) || precioNum < 0) {
+                return mostrarError('El precio es obligatorio y debe ser un número válido.');
+            }
             if (!ubicacion) return mostrarError('La ubicación es obligatoria.');
             if (habitaciones === '') return mostrarError('Las habitaciones son obligatorias.');
             if (banos === '') return mostrarError('Los baños son obligatorios.');
@@ -549,7 +618,7 @@
                     titulo,
                     tipoNegocio,
                     tipoInmueble,
-                    precio: parseInt(precio),
+                    precio: precioNum,
                     ubicacion,
                     habitaciones: parseInt(habitaciones),
                     banos: parseInt(banos),
@@ -561,7 +630,7 @@
                 };
 
                 // Opcionales
-                const valorAdmin = document.getElementById('valorAdmin').value;
+                const valorAdminDigits = soloDigitos(document.getElementById('valorAdmin').value);
                 const zona = document.getElementById('zona').value.trim();
                 const direccion = document.getElementById('direccion').value.trim();
                 const estrato = document.getElementById('estrato').value;
@@ -570,7 +639,10 @@
                 const areaPrivada = document.getElementById('areaPrivada').value;
                 const areaTerreno = document.getElementById('areaTerreno').value;
 
-                if (valorAdmin) dto.valorAdministracion = parseInt(valorAdmin);
+                if (valorAdminDigits) {
+                    const va = parseInt(valorAdminDigits, 10);
+                    if (Number.isFinite(va) && va >= 0) dto.valorAdministracion = va;
+                }
                 if (zona) dto.zona = zona;
                 if (direccion) dto.direccion = direccion;
                 if (estrato) dto.estrato = parseInt(estrato);
