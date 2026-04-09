@@ -277,6 +277,9 @@
 <body>
     <div class="container">
         <h2>🏠 Crear Inmueble Privado</h2>
+        <p class="size-info" style="margin-bottom:12px;">
+            Solo el <strong>título</strong> y <strong>al menos una imagen</strong> son obligatorios. El resto puede dejarse vacío o en <strong>N/A</strong>.
+        </p>
 
         <!-- Datos básicos -->
         <div class="section-title">Datos básicos</div>
@@ -286,17 +289,17 @@
         </div>
         <div class="grid-2">
             <div class="field">
-                <label>Tipo de negocio <span class="required">*</span></label>
+                <label>Tipo de negocio</label>
                 <select id="tipoNegocio">
-                    <option value="">— Selecciona —</option>
+                    <option value="N/A">N/A</option>
                     <option value="Venta">Venta</option>
                     <option value="Alquiler">Alquiler</option>
                 </select>
             </div>
             <div class="field">
-                <label>Tipo de inmueble <span class="required">*</span></label>
+                <label>Tipo de inmueble</label>
                 <select id="tipoInmueble">
-                    <option value="">— Selecciona —</option>
+                    <option value="N/A">N/A</option>
                     <option>Casa</option>
                     <option>Apartamento</option>
                     <option>Local Comercial</option>
@@ -310,10 +313,10 @@
         </div>
         <div class="grid-2">
             <div class="field">
-                <label>Precio (COP) <span class="required">*</span></label>
+                <label>Precio (COP)</label>
                 <input type="text" class="input-cop-miles" id="precio" inputmode="numeric" autocomplete="off"
                     placeholder="Ej. 450,000,000" aria-describedby="hint-precio" />
-                <span id="hint-precio" class="size-info">Se separan miles automáticamente (ej. 100,000).</span>
+                <span id="hint-precio" class="size-info">Opcional. Separación automática de miles (ej. 100,000).</span>
             </div>
             <div class="field">
                 <label>Valor Administración</label>
@@ -326,7 +329,7 @@
         <!-- Ubicación -->
         <div class="section-title">Ubicación</div>
         <div class="field">
-            <label>Ubicación <span class="required">*</span></label>
+            <label>Ubicación</label>
             <input type="text" id="ubicacion" placeholder="Ej. Colombia, Quindío, Armenia" />
         </div>
         <div class="grid-2">
@@ -343,7 +346,7 @@
             <div class="field">
                 <label>Estrato</label>
                 <select id="estrato">
-                    <option value="">—</option>
+                    <option value="N/A">N/A</option>
                     <option>0</option>
                     <option>1</option>
                     <option>2</option>
@@ -363,12 +366,12 @@
         <div class="section-title">Detalles físicos</div>
         <div class="grid-2">
             <div class="field">
-                <label>Habitaciones <span class="required">*</span></label>
-                <input type="number" id="habitaciones" placeholder="0" min="0" />
+                <label>Habitaciones</label>
+                <input type="number" id="habitaciones" placeholder="Vacío o 0" min="0" />
             </div>
             <div class="field">
-                <label>Baños <span class="required">*</span></label>
-                <input type="number" id="banos" placeholder="0" min="0" />
+                <label>Baños</label>
+                <input type="number" id="banos" placeholder="Vacío o 0" min="0" />
             </div>
         </div>
         <div class="grid-2">
@@ -395,8 +398,8 @@
         <!-- Descripción -->
         <div class="section-title">Descripción</div>
         <div class="field">
-            <label>Descripción <span class="required">*</span></label>
-            <textarea id="descripcion" placeholder="Descripción del inmueble..."></textarea>
+            <label>Descripción</label>
+            <textarea id="descripcion" placeholder="Descripción del inmueble (opcional)…"></textarea>
         </div>
 
         <!-- Características internas -->
@@ -408,7 +411,7 @@
         <div class="char-grid" id="char-externas"></div>
 
         <!-- Imágenes -->
-        <div class="section-title">Imágenes (máx. 5 MB en total)</div>
+        <div class="section-title">Imágenes <span class="required">*</span> (mín. 1 — máx. 5 MB en total)</div>
         <div class="image-area" onclick="document.getElementById('fileInput').click()">
             <input type="file" id="fileInput" accept=".jpg,.jpeg,.png,.webp" multiple />
             <label>📎 Seleccionar imágenes</label>
@@ -583,7 +586,6 @@
         async function guardar() {
             ocultarMensajes();
 
-            // Validaciones
             const titulo = document.getElementById('titulo').value.trim();
             const tipoNegocio = document.getElementById('tipoNegocio').value;
             const tipoInmueble = document.getElementById('tipoInmueble').value;
@@ -594,17 +596,11 @@
             const banos = document.getElementById('banos').value;
             const descripcion = document.getElementById('descripcion').value.trim();
 
-            if (!titulo || titulo.length < 10) return mostrarError('El título debe tener mínimo 10 caracteres.');
-            if (!tipoNegocio) return mostrarError('Selecciona el tipo de negocio.');
-            if (!tipoInmueble) return mostrarError('Selecciona el tipo de inmueble.');
-            if (!precioDigits || !Number.isFinite(precioNum) || precioNum < 0) {
-                return mostrarError('El precio es obligatorio y debe ser un número válido.');
-            }
-            if (!ubicacion) return mostrarError('La ubicación es obligatoria.');
-            if (habitaciones === '') return mostrarError('Las habitaciones son obligatorias.');
-            if (banos === '') return mostrarError('Los baños son obligatorios.');
-            if (!descripcion) return mostrarError('La descripción es obligatoria.');
+            if (!titulo) return mostrarError('El título es obligatorio.');
             if (archivosSeleccionados.length === 0) return mostrarError('Debes subir al menos una imagen.');
+            if (precioDigits && (!Number.isFinite(precioNum) || precioNum < 0)) {
+                return mostrarError('Si indicas precio, debe ser un número válido (≥ 0).');
+            }
 
             // Validar tamaño total
             const totalBytes = archivosSeleccionados.reduce((sum, f) => sum + f.size, 0);
@@ -613,15 +609,11 @@
             setLoading(true);
 
             try {
-                // Construir DTO
                 const dto = {
                     titulo,
-                    tipoNegocio,
-                    tipoInmueble,
-                    precio: precioNum,
+                    tipoNegocio: tipoNegocio || 'N/A',
+                    tipoInmueble: tipoInmueble || 'N/A',
                     ubicacion,
-                    habitaciones: parseInt(habitaciones),
-                    banos: parseInt(banos),
                     descripcion,
                     idDueno: 'asesor-hubspot-card',
                     idContacto: contactId || 'unknown',
@@ -629,12 +621,14 @@
                     caracteristicasExternas: getChecked('char-externas'),
                 };
 
-                // Opcionales
+                if (precioDigits && Number.isFinite(precioNum)) dto.precio = precioNum;
+
                 const valorAdminDigits = soloDigitos(document.getElementById('valorAdmin').value);
                 const zona = document.getElementById('zona').value.trim();
                 const direccion = document.getElementById('direccion').value.trim();
                 const estrato = document.getElementById('estrato').value;
                 const piso = document.getElementById('piso').value;
+                const estacionamiento = document.getElementById('estacionamiento').value;
                 const areaConstruida = document.getElementById('areaConstruida').value;
                 const areaPrivada = document.getElementById('areaPrivada').value;
                 const areaTerreno = document.getElementById('areaTerreno').value;
@@ -645,11 +639,35 @@
                 }
                 if (zona) dto.zona = zona;
                 if (direccion) dto.direccion = direccion;
-                if (estrato) dto.estrato = parseInt(estrato);
-                if (piso) dto.piso = parseInt(piso);
-                if (areaConstruida) dto.areaConstruida = parseFloat(areaConstruida);
-                if (areaPrivada) dto.areaPrivada = parseFloat(areaPrivada);
-                if (areaTerreno) dto.areaTerreno = parseFloat(areaTerreno);
+                if (estrato && estrato !== 'N/A') dto.estrato = parseInt(estrato, 10);
+                if (piso !== '') {
+                    const p = parseInt(piso, 10);
+                    if (Number.isFinite(p)) dto.piso = p;
+                }
+                if (habitaciones !== '') {
+                    const h = parseInt(habitaciones, 10);
+                    if (Number.isFinite(h) && h >= 0) dto.habitaciones = h;
+                }
+                if (banos !== '') {
+                    const b = parseInt(banos, 10);
+                    if (Number.isFinite(b) && b >= 0) dto.banos = b;
+                }
+                if (estacionamiento !== '') {
+                    const e = parseInt(estacionamiento, 10);
+                    if (Number.isFinite(e) && e >= 0) dto.estacionamiento = e;
+                }
+                if (areaConstruida) {
+                    const a = parseFloat(areaConstruida);
+                    if (Number.isFinite(a)) dto.areaConstruida = a;
+                }
+                if (areaPrivada) {
+                    const a = parseFloat(areaPrivada);
+                    if (Number.isFinite(a)) dto.areaPrivada = a;
+                }
+                if (areaTerreno) {
+                    const a = parseFloat(areaTerreno);
+                    if (Number.isFinite(a)) dto.areaTerreno = a;
+                }
 
                 // Construir FormData
                 const formData = new FormData();
@@ -670,9 +688,8 @@
                 const resultado = await res.json();
                 const codigoIdentificador = resultado.codigoIdentificador;
 
-                /* Construir URL según tipo de negocio (venta o alquiler) */
-                const esVenta = tipoNegocio === 'Venta';
-                const segmento = esVenta ? 'venta' : 'alquiler';
+                /* URL vitrina: solo Alquiler usa /alquiler/; N/A o Vacío → venta por defecto */
+                const segmento = tipoNegocio === 'Alquiler' ? 'alquiler' : 'venta';
                 const urlFinal = `https://buscador.habitarinmobiliaria.co/${segmento}/${codigoIdentificador}`;
 
                 /* Asignar a la vitrina del contacto via backend */
@@ -683,7 +700,7 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             url: urlFinal,
-                            tipo_inmueble: esVenta ? 'VENTA' : 'ALQUILER',
+                            tipo_inmueble: tipoNegocio === 'Alquiler' ? 'ALQUILER' : 'VENTA',
                         }),
                     }
                 );
