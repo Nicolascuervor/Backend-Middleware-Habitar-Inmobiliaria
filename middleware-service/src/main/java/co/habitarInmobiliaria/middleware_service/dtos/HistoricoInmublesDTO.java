@@ -13,7 +13,7 @@ import lombok.Setter;
 @AllArgsConstructor
 public class HistoricoInmublesDTO {
 
-    @NotBlank(message = "El código numérico del inmueble es obligatorio")
+    @NotBlank(message = "El código o URL del inmueble es obligatorio")
     private String codigoNumerico;
 
     @NotNull(message = "El cliente asociado es obligatorio")

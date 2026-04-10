@@ -17,6 +17,7 @@ import java.util.List;
 public class HistoricoInmublesService {
 
     private final HistoricoInmublesRepository historicoInmublesRepository;
+    private final InmuebleMapperService inmuebleMapperService;
 
     /**
      * Guarda un único registro de histórico de inmueble.
@@ -24,7 +25,7 @@ public class HistoricoInmublesService {
     @Transactional
     public HistoricoInmubles guardar(HistoricoInmublesDTO dto) {
         HistoricoInmubles entity = new HistoricoInmubles();
-        entity.setCodigoNumerico(dto.getCodigoNumerico());
+        entity.setCodigoNumerico(normalizarCodigoOUrl(dto.getCodigoNumerico()));
         entity.setClienteAsociado(dto.getClienteAsociado());
         entity.setEstadoCodigo(dto.getEstadoCodigo());
         entity.setFechaCreacion(OffsetDateTime.now());
@@ -41,7 +42,7 @@ public class HistoricoInmublesService {
     public List<HistoricoInmubles> guardarLote(List<HistoricoInmublesDTO> dtos) {
         List<HistoricoInmubles> entities = dtos.stream().map(dto -> {
             HistoricoInmubles entity = new HistoricoInmubles();
-            entity.setCodigoNumerico(dto.getCodigoNumerico());
+            entity.setCodigoNumerico(normalizarCodigoOUrl(dto.getCodigoNumerico()));
             entity.setClienteAsociado(dto.getClienteAsociado());
             entity.setEstadoCodigo(dto.getEstadoCodigo());
             entity.setFechaCreacion(OffsetDateTime.now());
@@ -67,5 +68,23 @@ public class HistoricoInmublesService {
     @Transactional(readOnly = true)
     public List<HistoricoInmubles> obtenerPorClienteAsociado(Long clienteAsociado) {
         return historicoInmublesRepository.findByClienteAsociado(clienteAsociado);
+    }
+
+    /**
+     * Acepta:
+     * - Código directo (ej. 8116766, 6e0e775d, recXXXX)
+     * - URL completa (ej. /casa-venta.../8116766 o /venta/6e0e775d)
+     */
+    private String normalizarCodigoOUrl(String valor) {
+        if (valor == null) {
+            return null;
+        }
+        String limpio = valor.trim();
+        if (limpio.isEmpty()) {
+            return limpio;
+        }
+
+        String extraido = inmuebleMapperService.extraerIdDeUrl(limpio);
+        return (extraido != null && !extraido.isBlank()) ? extraido : limpio;
     }
 }
