@@ -520,10 +520,13 @@
         function seleccionarColumna(containerId, columna) {
             const c = Math.max(1, Math.min(3, columna));
             const checks = document.querySelectorAll(`#${containerId} input[type="checkbox"]`);
-            checks.forEach((cb, idx) => {
-                const colActual = (idx % 3) + 1;
-                cb.checked = colActual === c;
-            });
+            const checksColumna = [...checks].filter((_, idx) => ((idx % 3) + 1) === c);
+            const todosSeleccionados = checksColumna.length > 0 && checksColumna.every(cb => cb.checked);
+
+            // Comportamiento tipo switch:
+            // - si toda la columna ya está marcada, la desmarca
+            // - si no, marca toda la columna
+            checksColumna.forEach(cb => cb.checked = !todosSeleccionados);
         }
 
         function seleccionarTodo(containerId) {
