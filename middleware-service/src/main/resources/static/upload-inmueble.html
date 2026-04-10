@@ -98,6 +98,29 @@
             gap: 6px;
         }
 
+        .char-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 8px;
+        }
+
+        .char-btn {
+            border: 1px solid #DDE3ED;
+            background: #fff;
+            color: #3A6CB0;
+            border-radius: 6px;
+            padding: 5px 9px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .char-btn:hover {
+            background: #f1f5ff;
+            border-color: #3A6CB0;
+        }
+
         .char-label {
             display: flex;
             align-items: center;
@@ -404,10 +427,24 @@
 
         <!-- Características internas -->
         <div class="section-title">Características internas</div>
+        <div class="char-actions">
+            <button type="button" class="char-btn" onclick="seleccionarColumna('char-internas', 1)">Col 1</button>
+            <button type="button" class="char-btn" onclick="seleccionarColumna('char-internas', 2)">Col 2</button>
+            <button type="button" class="char-btn" onclick="seleccionarColumna('char-internas', 3)">Col 3</button>
+            <button type="button" class="char-btn" onclick="seleccionarTodo('char-internas')">Seleccionar todo</button>
+            <button type="button" class="char-btn" onclick="limpiarSeleccion('char-internas')">Limpiar</button>
+        </div>
         <div class="char-grid" id="char-internas"></div>
 
         <!-- Características externas -->
         <div class="section-title">Características externas</div>
+        <div class="char-actions">
+            <button type="button" class="char-btn" onclick="seleccionarColumna('char-externas', 1)">Col 1</button>
+            <button type="button" class="char-btn" onclick="seleccionarColumna('char-externas', 2)">Col 2</button>
+            <button type="button" class="char-btn" onclick="seleccionarColumna('char-externas', 3)">Col 3</button>
+            <button type="button" class="char-btn" onclick="seleccionarTodo('char-externas')">Seleccionar todo</button>
+            <button type="button" class="char-btn" onclick="limpiarSeleccion('char-externas')">Limpiar</button>
+        </div>
         <div class="char-grid" id="char-externas"></div>
 
         <!-- Imágenes -->
@@ -470,7 +507,7 @@
             const container = document.getElementById(containerId);
             container.innerHTML = items.map((item, i) => `
       <label class="char-label">
-        <input type="checkbox" value="${item}" id="${containerId}-${i}" />
+        <input type="checkbox" value="${item}" id="${containerId}-${i}" data-index="${i}" />
         <span>${item}</span>
       </label>
     `).join('');
@@ -478,6 +515,25 @@
 
         function getChecked(containerId) {
             return [...document.querySelectorAll(`#${containerId} input:checked`)].map(cb => cb.value);
+        }
+
+        function seleccionarColumna(containerId, columna) {
+            const c = Math.max(1, Math.min(3, columna));
+            const checks = document.querySelectorAll(`#${containerId} input[type="checkbox"]`);
+            checks.forEach((cb, idx) => {
+                const colActual = (idx % 3) + 1;
+                cb.checked = colActual === c;
+            });
+        }
+
+        function seleccionarTodo(containerId) {
+            const checks = document.querySelectorAll(`#${containerId} input[type="checkbox"]`);
+            checks.forEach(cb => cb.checked = true);
+        }
+
+        function limpiarSeleccion(containerId) {
+            const checks = document.querySelectorAll(`#${containerId} input[type="checkbox"]`);
+            checks.forEach(cb => cb.checked = false);
         }
 
         buildCheckboxes('char-internas', CARACT_INTERNAS);
