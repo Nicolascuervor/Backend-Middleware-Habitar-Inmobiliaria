@@ -31,7 +31,13 @@ public class VitrinaController {
 
     /* Cargar vitrina personalizada del usuario */
     @GetMapping("/{usuarioToken}")
-    @Operation(summary = "Obtener vitrina completa", description = "Retorna el perfil del asesor y la lista de inmuebles.")
+    @Operation(
+            summary = "Obtener vitrina completa",
+            description = "Retorna el perfil del asesor, la lista de inmuebles y totalInmuebles: "
+                    + "total de listings con URL válida para este token. "
+                    + "Sin paginación, en respuesta completa (HTTP 200) se cumple totalInmuebles == inmuebles.size(). "
+                    + "Si faltan inmuebles por fallos externos, la respuesta usa HTTP 503 con el mismo JSON "
+                    + "(inmuebles.size() < totalInmuebles) para permitir reintento sin heurísticas.")
     public ResponseEntity<VitrinaResponseDTO> obtenerVitrina(@PathVariable String usuarioToken, HttpServletRequest request) {
         log.info("Solicitud REST recibida para token: {}", LogSanitizer.sanitizar(usuarioToken));
 
@@ -48,6 +54,21 @@ public class VitrinaController {
 
         if (vitrinaResponse.getInmuebles().isEmpty()) {
             log.info("Vitrina vacía para el token: {}", LogSanitizer.sanitizar(usuarioToken));
+        }
+
+        boolean vitrinaIncompleta = vitrinaResponse.getTotalInmuebles() != null
+                && vitrinaResponse.getInmuebles() != null
+                && vitrinaResponse.getTotalInmuebles() > vitrinaResponse.getInmuebles().size();
+
+        if (vitrinaIncompleta) {
+            log.warn("Vitrina incompleta para token {}: totalInmuebles={} recibidos={}",
+                    LogSanitizer.sanitizar(usuarioToken),
+                    vitrinaResponse.getTotalInmuebles(),
+                    vitrinaResponse.getInmuebles().size());
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .eTag(etag)
+                    .cacheControl(CacheControl.noCache())
+                    .body(vitrinaResponse);
         }
 
         return ResponseEntity.ok()

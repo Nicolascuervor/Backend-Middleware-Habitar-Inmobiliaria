@@ -145,6 +145,7 @@ public class OrquestadorService {
             return VitrinaResponseDTO.builder()
                     .asesor(construirInfoAsesor(null))
                     .inmuebles(new ArrayList<>())
+                    .totalInmuebles(0)
                     .alertas(new ArrayList<>())
                     .build();
         }
@@ -191,12 +192,20 @@ public class OrquestadorService {
                 .filter(Objects::nonNull)
                 .toList();
 
+        int totalEsperado = listingsActivos.size();
+        if (vitrinaFinal.size() < totalEsperado) {
+            alertas.add("Vitrina incompleta: se esperaban "
+                    + totalEsperado + " inmuebles y se obtuvieron " + vitrinaFinal.size()
+                    + ". Puede reintentar la petición.");
+        }
+
         // El asesor también debería estar listo a esta altura
         VitrinaResponseDTO.AsesorInfo asesorInfo = asesorFuture.join();
 
         return VitrinaResponseDTO.builder()
                 .asesor(asesorInfo)
                 .inmuebles(vitrinaFinal)
+                .totalInmuebles(totalEsperado)
                 .alertas(alertas.isEmpty() ? null : new ArrayList<>(alertas))
                 .build();
     }
