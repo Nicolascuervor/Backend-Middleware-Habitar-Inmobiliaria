@@ -8,3 +8,8 @@ API Backend para la gestión de llamadas API entre servicios de información com
 - **Respuesta incompleta**: si por timeouts u orígenes externos no se pudo armar la lista completa, el backend responde **503 Service Unavailable** con el mismo cuerpo JSON (`inmuebles.length < totalInmuebles`, `alertas` con detalle). El cliente puede reintentar hasta obtener 200.
 
 Si en el futuro la vitrina se pagina, el contrato evolucionaría: `totalInmuebles` sería el total lógico del recurso y `inmuebles` la página actual, junto con metadatos de paginación estándar.
+
+## Asesores (`GET /api/v1/asesores/mis-clientes`)
+
+- Parámetro obligatorio **`hubspotOwnerId`**: mismo identificador de propietario en HubSpot que antes se obtenía del JWT tras login.
+- Ya no existe **`POST /api/v1/auth/login`** ni JWT en este servicio.
