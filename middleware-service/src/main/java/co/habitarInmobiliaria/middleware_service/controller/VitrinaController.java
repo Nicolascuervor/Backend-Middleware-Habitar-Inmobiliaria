@@ -33,11 +33,10 @@ public class VitrinaController {
     @GetMapping("/{usuarioToken}")
     @Operation(
             summary = "Obtener vitrina completa",
-            description = "Retorna el perfil del asesor, la lista de inmuebles y totalInmuebles: "
-                    + "total de listings con URL válida para este token. "
-                    + "Sin paginación, en respuesta completa (HTTP 200) se cumple totalInmuebles == inmuebles.size(). "
-                    + "Si faltan inmuebles por fallos externos, la respuesta usa HTTP 503 con el mismo JSON "
-                    + "(inmuebles.size() < totalInmuebles) para permitir reintento sin heurísticas.")
+            description = "Retorna el perfil del asesor, la lista de inmuebles y totalInmuebles. "
+                    + "Antes de responder, el backend valida integridad comparando el conteo extraído "
+                    + "con el esperado en HubSpot (listings_alquiler_filled_count + listings_venta_filled_count). "
+                    + "Si no coincide tras reintentos con backoff, responde HTTP 422.")
     public ResponseEntity<VitrinaResponseDTO> obtenerVitrina(@PathVariable String usuarioToken, HttpServletRequest request) {
         log.info("Solicitud REST recibida para token: {}", LogSanitizer.sanitizar(usuarioToken));
 
@@ -54,21 +53,6 @@ public class VitrinaController {
 
         if (vitrinaResponse.getInmuebles().isEmpty()) {
             log.info("Vitrina vacía para el token: {}", LogSanitizer.sanitizar(usuarioToken));
-        }
-
-        boolean vitrinaIncompleta = vitrinaResponse.getTotalInmuebles() != null
-                && vitrinaResponse.getInmuebles() != null
-                && vitrinaResponse.getTotalInmuebles() > vitrinaResponse.getInmuebles().size();
-
-        if (vitrinaIncompleta) {
-            log.warn("Vitrina incompleta para token {}: totalInmuebles={} recibidos={}",
-                    LogSanitizer.sanitizar(usuarioToken),
-                    vitrinaResponse.getTotalInmuebles(),
-                    vitrinaResponse.getInmuebles().size());
-            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                    .eTag(etag)
-                    .cacheControl(CacheControl.noCache())
-                    .body(vitrinaResponse);
         }
 
         return ResponseEntity.ok()

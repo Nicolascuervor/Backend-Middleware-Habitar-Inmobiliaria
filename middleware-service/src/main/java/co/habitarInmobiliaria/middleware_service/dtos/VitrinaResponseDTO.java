@@ -14,9 +14,9 @@ public class VitrinaResponseDTO {
 
     @Schema(
             name = "totalInmuebles",
-            description = "Total esperado de inmuebles en esta respuesta (listings con URL válida). "
-                    + "Debe coincidir con inmuebles.length cuando la respuesta es completa (HTTP 200). "
-                    + "Si hay datos faltantes por fallos externos, puede enviarse HTTP 503 con el mismo cuerpo.",
+            description = "Total de inmuebles efectivamente retornados en el array inmuebles. "
+                    + "Antes de responder, el backend valida este total contra el conteo esperado de HubSpot "
+                    + "(listings_alquiler_filled_count + listings_venta_filled_count).",
             example = "3",
             requiredMode = Schema.RequiredMode.REQUIRED)
     private Integer totalInmuebles;

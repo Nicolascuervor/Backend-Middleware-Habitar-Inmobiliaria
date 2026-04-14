@@ -3,9 +3,10 @@ API Backend para la gestión de llamadas API entre servicios de información com
 
 ## Vitrina (`GET /api/v1/vitrina/{token}`)
 
-- **`totalInmuebles`**: entero no negativo con el total de listings con URL válida (alquiler + venta) que esta respuesta debe cubrir para ese token. No es un “histórico global”; es el tamaño lógico de la vitrina en esta llamada.
-- **Coherencia (sin paginación)**: si la respuesta es **200 OK**, se garantiza `totalInmuebles == inmuebles.length`.
-- **Respuesta incompleta**: si por timeouts u orígenes externos no se pudo armar la lista completa, el backend responde **503 Service Unavailable** con el mismo cuerpo JSON (`inmuebles.length < totalInmuebles`, `alertas` con detalle). El cliente puede reintentar hasta obtener 200.
+- **`totalInmuebles`**: entero no negativo con el total de inmuebles efectivamente retornados en `inmuebles`.
+- **Validación de integridad**: antes de responder, backend compara el total extraído (`totalInmuebles`) contra el total esperado en HubSpot (`listings_alquiler_filled_count + listings_venta_filled_count`).
+- **Reintentos automáticos**: si no coincide, reintenta extracción con backoff incremental.
+- **Fallo controlado**: si agota reintentos sin coincidencia, responde **422 Unprocessable Entity** con mensaje de desajuste de conteos.
 
 Si en el futuro la vitrina se pagina, el contrato evolucionaría: `totalInmuebles` sería el total lógico del recurso y `inmuebles` la página actual, junto con metadatos de paginación estándar.
 

@@ -10,6 +10,7 @@ import co.habitarinmobiliaria.middleware_service.client.AirtableClient;
 import co.habitarinmobiliaria.middleware_service.client.HubSpotClient;
 import co.habitarinmobiliaria.middleware_service.client.WasiClient;
 import co.habitarinmobiliaria.middleware_service.dtos.*;
+import co.habitarinmobiliaria.middleware_service.exception.ConteoInmueblesInconsistenteException;
 import co.habitarinmobiliaria.middleware_service.exception.RecursoNoEncontradoException;
 import co.habitarinmobiliaria.middleware_service.util.LogSanitizer;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -109,7 +110,12 @@ public class OrquestadorService {
             HubSpotConstants.FIRSTNAME + "," +
                     HubSpotConstants.OWNER_ID + "," +
                     HubSpotConstants.LISTINGS_ALQUILER_DATA + "," +
-                    HubSpotConstants.LISTINGS_VENTA_DATA;
+                    HubSpotConstants.LISTINGS_VENTA_DATA + "," +
+                    HubSpotConstants.LISTINGS_ALQUILER_FILLED_COUNT + "," +
+                    HubSpotConstants.LISTINGS_VENTA_FILLED_COUNT;
+
+    private static final int[] RETRY_BACKOFF_MS = {300, 800, 1500};
+    private static final int MAX_INTENTOS_CONTEO = RETRY_BACKOFF_MS.length + 1;
 
     // ─── Utilidades JSON ─────────────────────────────────────────────────────
 
@@ -132,42 +138,30 @@ public class OrquestadorService {
         }
     }
 
-    // ─── procesarVitrina (OPTIMIZADO: paralelo + cacheable) ─────────────────
-
-    @Cacheable(value = "vitrina", key = "#usuarioToken", sync = true)
-    public VitrinaResponseDTO procesarVitrina(String usuarioToken) {
-        log.info("Iniciando orquestación completa para usuario: {}", usuarioToken);
-
-        HubSpotContactDTO contacto = hubSpotClient.obtenerContacto(usuarioToken, PROPS_VITRINA);
-
-        if (contacto == null || contacto.getProperties() == null) {
-            log.warn("Usuario no encontrado o sin propiedades: {}", usuarioToken);
-            return VitrinaResponseDTO.builder()
-                    .asesor(construirInfoAsesor(null))
-                    .inmuebles(new ArrayList<>())
-                    .totalInmuebles(0)
-                    .alertas(new ArrayList<>())
-                    .build();
+    private int parseIntSeguro(String raw) {
+        if (raw == null || raw.isBlank()) return 0;
+        try {
+            return Integer.parseInt(raw.trim());
+        } catch (NumberFormatException ex) {
+            return 0;
         }
+    }
 
+    private ExtractionSnapshot ejecutarExtraccionVitrina(HubSpotContactDTO contacto) {
         Map<String, String> dinamicas = contacto.getProperties().getPropiedadesDinamicas();
 
         List<ListingItemDTO> alquiler = parsearListings(dinamicas.get(HubSpotConstants.LISTINGS_ALQUILER_DATA));
-        List<ListingItemDTO> venta    = parsearListings(dinamicas.get(HubSpotConstants.LISTINGS_VENTA_DATA));
+        List<ListingItemDTO> venta = parsearListings(dinamicas.get(HubSpotConstants.LISTINGS_VENTA_DATA));
 
-        // Filtrar listings con URL válida
+        int totalInmueblesHubSpot = parseIntSeguro(dinamicas.get(HubSpotConstants.LISTINGS_ALQUILER_FILLED_COUNT))
+                + parseIntSeguro(dinamicas.get(HubSpotConstants.LISTINGS_VENTA_FILLED_COUNT));
+
         List<ListingItemDTO> listingsActivos = Stream.concat(alquiler.stream(), venta.stream())
                 .filter(item -> item.getUrl() != null && !item.getUrl().isBlank())
                 .toList();
 
-        // Colector thread-safe para alertas de degradación parcial
         List<String> alertas = new CopyOnWriteArrayList<>();
 
-        // ══════════════════════════════════════════════════════════════════
-        // OPTIMIZACIÓN CRÍTICA: Ejecución PARALELA de consultas externas
-        // ANTES: N llamadas seriales × 3-5s = 30-60s TTFB
-        // DESPUÉS: N llamadas paralelas = max(3-5s) = 3-8s TTFB
-        // ══════════════════════════════════════════════════════════════════
         List<CompletableFuture<VitrinaInmuebleDTO>> futures = listingsActivos.stream()
                 .map(item -> CompletableFuture.supplyAsync(
                         () -> consultarInmuebleIndividual(item.getUrl(), item.getEstado()),
@@ -179,12 +173,6 @@ public class OrquestadorService {
                 }))
                 .toList();
 
-        // Obtener info del asesor EN PARALELO con las consultas de inmuebles
-        String ownerId = contacto.getProperties().getOwnerId();
-        CompletableFuture<VitrinaResponseDTO.AsesorInfo> asesorFuture =
-                CompletableFuture.supplyAsync(() -> construirInfoAsesor(ownerId), executor);
-
-        // Esperar a que TODAS las consultas de inmuebles terminen
         CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
 
         List<VitrinaInmuebleDTO> vitrinaFinal = futures.stream()
@@ -192,22 +180,79 @@ public class OrquestadorService {
                 .filter(Objects::nonNull)
                 .toList();
 
-        int totalEsperado = listingsActivos.size();
-        if (vitrinaFinal.size() < totalEsperado) {
-            alertas.add("Vitrina incompleta: se esperaban "
-                    + totalEsperado + " inmuebles y se obtuvieron " + vitrinaFinal.size()
-                    + ". Puede reintentar la petición.");
+        return new ExtractionSnapshot(vitrinaFinal, alertas, totalInmueblesHubSpot);
+    }
+
+    // ─── procesarVitrina (OPTIMIZADO: paralelo + cacheable) ─────────────────
+
+    @Cacheable(value = "vitrina", key = "#usuarioToken", sync = true)
+    public VitrinaResponseDTO procesarVitrina(String usuarioToken) {
+        log.info("Iniciando orquestación completa para usuario: {}", usuarioToken);
+
+        ExtractionSnapshot ultimoIntento = null;
+        String ownerId = null;
+
+        for (int intento = 1; intento <= MAX_INTENTOS_CONTEO; intento++) {
+            HubSpotContactDTO contacto = hubSpotClient.obtenerContacto(usuarioToken, PROPS_VITRINA);
+            if (contacto == null || contacto.getProperties() == null) {
+                log.warn("Usuario no encontrado o sin propiedades: {}", usuarioToken);
+                return VitrinaResponseDTO.builder()
+                        .asesor(construirInfoAsesor(null))
+                        .inmuebles(new ArrayList<>())
+                        .totalInmuebles(0)
+                        .alertas(new ArrayList<>())
+                        .build();
+            }
+
+            ownerId = contacto.getProperties().getOwnerId();
+            ultimoIntento = ejecutarExtraccionVitrina(contacto);
+            int totalInmuebles = ultimoIntento.inmuebles().size();
+            int totalInmueblesHubSpot = ultimoIntento.totalInmueblesHubSpot();
+
+            log.info(
+                    "Validación conteos vitrina | contactId={} totalInmuebles={} totalInmueblesHubSpot={} intento={}/{}",
+                    LogSanitizer.sanitizar(usuarioToken),
+                    totalInmuebles,
+                    totalInmueblesHubSpot,
+                    intento,
+                    MAX_INTENTOS_CONTEO
+            );
+
+            if (totalInmuebles == totalInmueblesHubSpot) {
+                VitrinaResponseDTO.AsesorInfo asesorInfo = construirInfoAsesor(ownerId);
+                return VitrinaResponseDTO.builder()
+                        .asesor(asesorInfo)
+                        .inmuebles(ultimoIntento.inmuebles())
+                        .totalInmuebles(totalInmuebles)
+                        .alertas(ultimoIntento.alertas().isEmpty() ? null : new ArrayList<>(ultimoIntento.alertas()))
+                        .build();
+            }
+
+            if (intento < MAX_INTENTOS_CONTEO) {
+                try {
+                    Thread.sleep(RETRY_BACKOFF_MS[intento - 1]);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new ConteoInmueblesInconsistenteException(
+                            "Proceso interrumpido durante validación de integridad de vitrina.");
+                }
+            }
         }
 
-        // El asesor también debería estar listo a esta altura
-        VitrinaResponseDTO.AsesorInfo asesorInfo = asesorFuture.join();
+        int totalInmueblesFinal = ultimoIntento != null ? ultimoIntento.inmuebles().size() : 0;
+        int totalInmueblesHubSpotFinal = ultimoIntento != null ? ultimoIntento.totalInmueblesHubSpot() : 0;
+        throw new ConteoInmueblesInconsistenteException(
+                "Desajuste de conteos en vitrina para contacto " + LogSanitizer.sanitizar(usuarioToken)
+                        + ": totalInmuebles=" + totalInmueblesFinal
+                        + ", totalInmueblesHubSpot=" + totalInmueblesHubSpotFinal
+                        + ". Reintentos agotados.");
+    }
 
-        return VitrinaResponseDTO.builder()
-                .asesor(asesorInfo)
-                .inmuebles(vitrinaFinal)
-                .totalInmuebles(totalEsperado)
-                .alertas(alertas.isEmpty() ? null : new ArrayList<>(alertas))
-                .build();
+    private record ExtractionSnapshot(
+            List<VitrinaInmuebleDTO> inmuebles,
+            List<String> alertas,
+            int totalInmueblesHubSpot
+    ) {
     }
 
     // ─── procesarCambioEstado ────────────────────────────────────────────────
