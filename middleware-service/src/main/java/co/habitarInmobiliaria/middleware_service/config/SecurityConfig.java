@@ -43,6 +43,7 @@ public class SecurityConfig {
                         .requestMatchers("/static/**", "/*.html").permitAll()
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/api/v1/inmuebles-privados", "/api/v1/inmuebles-privados/**").permitAll()
+                        .requestMatchers("/api/v1/historico-inmuebles", "/api/v1/historico-inmuebles/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                         /* Rutas protegidas */
                         .anyRequest().authenticated())
@@ -62,6 +63,7 @@ public class SecurityConfig {
         /* Orígenes inyectados + permitir el propio dominio (Railway y local) para que el HTML embebido funcione */
         java.util.List<String> origins = new java.util.ArrayList<>(java.util.List.of(corsAllowedOrigins));
         origins.add("https://backend-middleware-habitar-inmobiliaria-production.up.railway.app");
+        origins.add("https://ulcerous-teresia-subterete.ngrok-free.dev");
         origins.add("http://localhost:8080");
         origins.add("http://localhost:8000"); /* Permitir frontend local */
         origins.add("https://ulcerous-teresia-subterete.ngrok-free.dev");

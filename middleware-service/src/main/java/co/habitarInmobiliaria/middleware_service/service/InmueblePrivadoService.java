@@ -131,17 +131,16 @@ public class InmueblePrivadoService {
     private Map<String, Object> construirMetadatos(CrearInmueblePrivadoDTO dto) {
         Map<String, Object> metadatos = new LinkedHashMap<>();
 
-        /* Campos obligatorios */
-        metadatos.put("titulo", dto.getTitulo());
-        metadatos.put("tipoNegocio", dto.getTipoNegocio());
+        metadatos.put("titulo", dto.getTitulo() != null ? dto.getTitulo().trim() : "");
+        metadatos.put("tipoNegocio", textoO_NA(dto.getTipoNegocio()));
         metadatos.put("precio", dto.getPrecio());
-        metadatos.put("idDueno", dto.getIdDueno());
-        metadatos.put("idContacto", dto.getIdContacto());
-        metadatos.put("ubicacion", dto.getUbicacion());
-        metadatos.put("tipoInmueble", dto.getTipoInmueble());
+        metadatos.put("idDueno", textoOVacio(dto.getIdDueno()));
+        metadatos.put("idContacto", textoOVacio(dto.getIdContacto()));
+        metadatos.put("ubicacion", textoOVacio(dto.getUbicacion()));
+        metadatos.put("tipoInmueble", textoO_NA(dto.getTipoInmueble()));
         metadatos.put("habitaciones", dto.getHabitaciones());
         metadatos.put("banos", dto.getBanos());
-        metadatos.put("descripcion", dto.getDescripcion());
+        metadatos.put("descripcion", textoOVacio(dto.getDescripcion()));
 
         /* Campos opcionales */
         agregarSiNoNull(metadatos, "valorAdministracion", dto.getValorAdministracion());
@@ -165,6 +164,20 @@ public class InmueblePrivadoService {
         if (value != null) {
             mapa.put(key, value);
         }
+    }
+
+    private static String textoO_NA(String s) {
+        if (s == null || s.isBlank()) {
+            return "N/A";
+        }
+        return s.trim();
+    }
+
+    private static String textoOVacio(String s) {
+        if (s == null || s.isBlank()) {
+            return "";
+        }
+        return s.trim();
     }
 
     /* Validar todas las imágenes */

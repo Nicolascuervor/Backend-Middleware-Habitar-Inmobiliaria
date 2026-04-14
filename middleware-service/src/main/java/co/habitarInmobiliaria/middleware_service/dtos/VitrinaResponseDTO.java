@@ -1,7 +1,9 @@
 package co.habitarinmobiliaria.middleware_service.dtos;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Data;
+
 import java.util.List;
 
 @Data
@@ -9,7 +11,17 @@ import java.util.List;
 public class VitrinaResponseDTO {
     private AsesorInfo asesor;
     private List<VitrinaInmuebleDTO> inmuebles;
-    private List<String> alertas; // Mensajes de degradación parcial (ej: "Portal Wasi no disponible")
+
+    @Schema(
+            name = "totalInmuebles",
+            description = "Total esperado de inmuebles en esta respuesta (listings con URL válida). "
+                    + "Debe coincidir con inmuebles.length cuando la respuesta es completa (HTTP 200). "
+                    + "Si hay datos faltantes por fallos externos, puede enviarse HTTP 503 con el mismo cuerpo.",
+            example = "3",
+            requiredMode = Schema.RequiredMode.REQUIRED)
+    private Integer totalInmuebles;
+
+    private List<String> alertas;
 
     @Data
     @Builder
