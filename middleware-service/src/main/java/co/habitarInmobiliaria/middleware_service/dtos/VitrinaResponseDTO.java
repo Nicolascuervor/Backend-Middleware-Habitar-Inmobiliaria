@@ -12,12 +12,6 @@ public class VitrinaResponseDTO {
     private AsesorInfo asesor;
     private List<VitrinaInmuebleDTO> inmuebles;
 
-    /**
-     * Total de inmuebles que esta respuesta debe cubrir para el token: cantidad de listings
-     * con URL válida en HubSpot (alquiler + venta). Sin paginación: en respuesta correcta
-     * {@code totalInmuebles == inmuebles.size()}; si hay fallos parciales, el backend puede
-     * responder 503 con {@code inmuebles.size() < totalInmuebles}.
-     */
     @Schema(
             name = "totalInmuebles",
             description = "Total esperado de inmuebles en esta respuesta (listings con URL válida). "
@@ -27,7 +21,7 @@ public class VitrinaResponseDTO {
             requiredMode = Schema.RequiredMode.REQUIRED)
     private Integer totalInmuebles;
 
-    private List<String> alertas; // Mensajes de degradación parcial (ej: "Portal Wasi no disponible")
+    private List<String> alertas;
 
     @Data
     @Builder
