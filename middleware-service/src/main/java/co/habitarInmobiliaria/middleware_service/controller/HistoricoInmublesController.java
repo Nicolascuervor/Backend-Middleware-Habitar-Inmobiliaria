@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
 import java.util.List;
 
 @RestController
@@ -48,5 +49,16 @@ public class HistoricoInmublesController {
     public ResponseEntity<List<HistoricoInmubles>> obtenerPorClienteAsociado(
             @PathVariable Long clienteAsociado) {
         return ResponseEntity.ok(historicoInmublesService.obtenerPorClienteAsociado(clienteAsociado));
+    }
+
+    @GetMapping("/db-check")
+    @Operation(summary = "Verificar conexión de base de datos para histórico")
+    public ResponseEntity<Map<String, Object>> verificarDb() {
+        boolean ok = historicoInmublesService.verificarConexionDb();
+        return ResponseEntity.ok(Map.of(
+                "ok", ok,
+                "db", "postgres",
+                "proveedorObjetivo", "supabase"
+        ));
     }
 }
