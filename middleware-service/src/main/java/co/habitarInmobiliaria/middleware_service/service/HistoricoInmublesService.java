@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -18,6 +19,7 @@ public class HistoricoInmublesService {
 
     private final HistoricoInmublesRepository historicoInmublesRepository;
     private final InmuebleMapperService inmuebleMapperService;
+    private final JdbcTemplate jdbcTemplate;
 
     /**
      * Guarda un único registro de histórico de inmueble.
@@ -68,6 +70,15 @@ public class HistoricoInmublesService {
     @Transactional(readOnly = true)
     public List<HistoricoInmubles> obtenerPorClienteAsociado(Long clienteAsociado) {
         return historicoInmublesRepository.findByClienteAsociado(clienteAsociado);
+    }
+
+    /**
+     * Verificación simple de conectividad a la DB activa (Supabase/Postgres).
+     */
+    @Transactional(readOnly = true)
+    public boolean verificarConexionDb() {
+        Integer ok = jdbcTemplate.queryForObject("SELECT 1", Integer.class);
+        return ok != null && ok == 1;
     }
 
     /**

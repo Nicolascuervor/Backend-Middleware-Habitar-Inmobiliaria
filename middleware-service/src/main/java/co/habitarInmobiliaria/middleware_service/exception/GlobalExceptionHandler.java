@@ -26,6 +26,18 @@ public class GlobalExceptionHandler {
         return construirRespuesta(HttpStatus.NOT_FOUND, ex.getMessage(), request);
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResponseDTO> handleIllegalArgument(IllegalArgumentException ex,
+            HttpServletRequest request) {
+        return construirRespuesta(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(ConteoInmueblesInconsistenteException.class)
+    public ResponseEntity<ErrorResponseDTO> handleConteoInconsistente(ConteoInmueblesInconsistenteException ex,
+            HttpServletRequest request) {
+        return construirRespuesta(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage(), request);
+    }
+
     /* Maneja errores de Feign con APIs externas */
     @ExceptionHandler(FeignException.class)
     public ResponseEntity<ErrorResponseDTO> handleFeignException(FeignException ex, HttpServletRequest request) {

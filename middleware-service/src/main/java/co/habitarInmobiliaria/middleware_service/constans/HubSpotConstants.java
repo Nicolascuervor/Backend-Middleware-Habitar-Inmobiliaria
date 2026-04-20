@@ -14,4 +14,6 @@ public final class HubSpotConstants {
 
     public static final String LISTINGS_ALQUILER_DATA = "listings_alquiler_data";
     public static final String LISTINGS_VENTA_DATA = "listings_venta_data";
+    public static final String LISTINGS_ALQUILER_FILLED_COUNT = "listings_alquiler_filled_count";
+    public static final String LISTINGS_VENTA_FILLED_COUNT = "listings_venta_filled_count";
 }

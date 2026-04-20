@@ -20,12 +20,12 @@ import java.util.Map;
 public class AsesorService {
 
     private final HubSpotClient hubSpotClient;
-    private final JwtService jwtService;
 
-    public ClientesPaginadosDTO obtenerMisClientes(String authHeader, int limit, String afterToken) {
-        /* Extraer token y ID del asesor */
-        String token = authHeader.substring(7);
-        String ownerId = jwtService.extraerOwnerId(token);
+    public ClientesPaginadosDTO obtenerMisClientes(String hubspotOwnerId, int limit, String afterToken) {
+        String ownerId = hubspotOwnerId != null ? hubspotOwnerId.trim() : "";
+        if (ownerId.isEmpty()) {
+            throw new IllegalArgumentException("hubspotOwnerId es obligatorio");
+        }
         log.info("Buscando clientes paginados para el Asesor OwnerId: {} | Limit: {}", ownerId, limit);
 
         /* Generar propiedades solicitadas */
